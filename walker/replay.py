@@ -99,9 +99,8 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
 const P = __PAYLOAD__;
 const COLORS = { fly: "#e8710a", coin: "#9aa0a6", greedy: "#1a73e8" };
 const map = L.map("map");
-L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-  attribution: "© OpenStreetMap contributors © CARTO · imagery © Mapillary",
-  subdomains: "abcd",
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  attribution: "© OpenStreetMap contributors · imagery © Mapillary",
   maxZoom: 19
 }).addTo(map);
 map.fitBounds(L.latLngBounds([P.polylines.fly[0], P.goal]));

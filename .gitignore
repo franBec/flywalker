@@ -11,8 +11,10 @@ infra/.terraform.lock.hcl
 
 # run artifacts
 runs/
+local-runs/
 replay-out/
 data/
+*.tar.gz
 
 # python
 __pycache__/
