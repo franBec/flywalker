@@ -31,7 +31,7 @@ resource "google_compute_instance" "flywalker" {
   scheduling {
     provisioning_model           = "SPOT"
     preemptible                  = true
-    automatic_restart            = true
+    automatic_restart            = false
     instance_termination_action  = "STOP"
     on_host_maintenance          = "TERMINATE"
   }
