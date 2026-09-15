@@ -13,6 +13,14 @@ salience it reads is goal-directed. Strength is tunable via GOAL_SALIENCE_K
 (per-junction delta gain), GOAL_SALIENCE_L (delta length scale, metres) and
 GOAL_SALIENCE_ABS (absolute proximity gain for the "brighter near the goal"
 ramp seen in the flycam).
+
+v2 follow-up (2026-09-16): the brightness veil was measured neutral-to-
+inverted against the real brain (per-junction corr ~+0.01, hz drift -1.8 Hz
+across the full boost range) and is now OFF by default (GOAL_SALIENCE_K=0).
+The goal channel is the chart-native goal meter: a dark column rendered like
+Stonkfly's own chart ink whose height encodes how much closer the candidate
+gets the fly to the nata. GOAL_METER_W / GOAL_METER_H size it; GOAL_SALIENCE_L
+normalizes the delta.
 """
 
 import os
@@ -21,9 +29,32 @@ FRAME_W, FRAME_H = 320, 180
 LIGHT_BG = (235, 240, 249)
 INK = (19, 36, 71)
 
-GOAL_SALIENCE_K = 1.7
-GOAL_SALIENCE_L = 25.0
-GOAL_SALIENCE_ABS = 0.3
+GOAL_SALIENCE_K = 0.0
+GOAL_SALIENCE_L = 3.0
+GOAL_SALIENCE_ABS = 0.0
+
+GOAL_METER_W = 26.0
+GOAL_METER_H = 80.0
+
+
+def meter_size(current, candidate, goal):
+    """(width, height) of the chart-native goal meter.
+
+    The column renders like chart ink on the light background - the visual
+    domain Stonkfly's connectome was validated on. Height is linear in how
+    much closer the candidate sits than the current node (saturated at
+    +/-GOAL_SALIENCE_L metres). Deterministic and resume-safe.
+    """
+    from corridor import haversine_m
+
+    cur = haversine_m(current["lat"], current["lng"], goal["lat"], goal["lng"])
+    cand = haversine_m(candidate["lat"], candidate["lng"], goal["lat"], goal["lng"])
+    length_m = float(os.environ.get("GOAL_SALIENCE_L", GOAL_SALIENCE_L))
+    d = max(-1.0, min(1.0, (cur - cand) / max(1.0, length_m)))
+    return (
+        float(os.environ.get("GOAL_METER_W", GOAL_METER_W)),
+        max(0.0, float(os.environ.get("GOAL_METER_H", GOAL_METER_H)) * (1.0 + d) / 2.0),
+    )
 
 
 def salience_params():
@@ -116,6 +147,13 @@ def option_frame(run_dir, current, candidate, option_letter, goal):
     im = Image.new("RGB", (FRAME_W, FRAME_H), LIGHT_BG)
     im.paste(viewport, (0, 0))
     d = ImageDraw.Draw(im)
+    mw, mh = meter_size(current, candidate, goal)
+    if mh > 1.0:
+        mw = int(mw)
+        d.rectangle(
+            ((FRAME_W - mw) // 2, FRAME_H - 30 - int(mh), (FRAME_W + mw) // 2, FRAME_H - 32),
+            fill=INK,
+        )
     d.rectangle((0, FRAME_H - 30, FRAME_W, FRAME_H), fill=INK)
     d.text((8, FRAME_H - 22), f"FLY EYE  OPT {option_letter}", fill=(219, 229, 249))
     # small chevron pointing "ahead" - part of the display adapter, not game logic
