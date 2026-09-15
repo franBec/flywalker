@@ -80,14 +80,16 @@ class FlyPolicy:
     first consult of this tick, following Stonkfly's "delivered at the next
     observation" semantics."""
 
-    def __init__(self, oracle, goal, nodes):
+    def __init__(self, oracle, goal, nodes, timing_stats=None):
         self.oracle = oracle
         self.goal = goal
         self.nodes = nodes
         self.pending_sign = None  # "reward" | "aversive" | None
+        self.timing = timing_stats
 
     def choose(self, node, candidates, run_dir):
         import os
+        import time
 
         from corridor import haversine_m
         from frames import option_frame
@@ -98,7 +100,11 @@ class FlyPolicy:
             rec = self.nodes[nid]
             frame = option_frame(run_dir, rec, letter)
             reinforcement = self.pending_sign if i == 0 else None
+            t0 = time.monotonic()
             obs = self.oracle.consult(frame, reinforcement)
+            consult_s = time.monotonic() - t0
+            if self.timing:
+                self.timing.record_consult(consult_s)
             results.append(
                 {
                     "node": nid,
@@ -114,6 +120,7 @@ class FlyPolicy:
                     "brain_kind": obs.get("brain_kind"),
                     "oracle_consult": obs.get("oracle_consult"),
                     "reinforcement": reinforcement or "none",
+                    "consult_ms": round(consult_s * 1000, 1),
                 }
             )
         best = max(results, key=lambda s: s["approach_hz"])

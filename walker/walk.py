@@ -124,6 +124,50 @@ def wait_for_oracle(oracle, deadline_seconds=1800):
     raise SystemExit("oracle did not become ready")
 
 
+class TimingStats:
+    """Running statistics for consult latency and tick duration."""
+
+    def __init__(self, window_size=20):
+        self.window_size = window_size
+        self.consult_latencies = []
+        self.tick_durations = []
+        self._tick_start = None
+
+    def record_consult(self, duration_s):
+        self.consult_latencies.append(duration_s)
+        if len(self.consult_latencies) > self.window_size * 5:
+            self.consult_latencies = self.consult_latencies[-self.window_size * 2:]
+
+    def start_tick(self):
+        self._tick_start = time.monotonic()
+
+    def end_tick(self):
+        if self._tick_start is not None:
+            self.tick_durations.append(time.monotonic() - self._tick_start)
+            if len(self.tick_durations) > self.window_size * 5:
+                self.tick_durations = self.tick_durations[-self.window_size * 2:]
+            self._tick_start = None
+
+    def avg_consult_ms(self):
+        if not self.consult_latencies:
+            return 0.0
+        recent = self.consult_latencies[-self.window_size:]
+        return sum(recent) / len(recent) * 1000
+
+    def avg_tick_s(self):
+        if not self.tick_durations:
+            return 0.0
+        recent = self.tick_durations[-self.window_size:]
+        return sum(recent) / len(recent)
+
+    def p95_consult_ms(self):
+        if not self.consult_latencies:
+            return 0.0
+        recent = sorted(self.consult_latencies[-self.window_size:])
+        idx = int(len(recent) * 0.95)
+        return recent[min(idx, len(recent) - 1)] * 1000
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--run-id", default=os.environ.get("RUN_ID", "nata"))
@@ -139,7 +183,7 @@ def main():
     os.makedirs(run_dir, exist_ok=True)
 
     summary_path = os.path.join(run_dir, "summary.json")
-    if os.path.exists(summary_json_path(run_dir)):
+    if os.path.exists(summary_path):
         print(f"run '{args.run_id}' already complete; nothing to do")
         return
 
@@ -163,7 +207,8 @@ def main():
     deadband = env_float("PROGRESS_DEADBAND_M", 2.0)
     max_steps = env_int("MAX_STEPS", 1200)
 
-    fly = FlyPolicy(oracle, goal, nodes)
+    timing = TimingStats(window_size=20)
+    fly = FlyPolicy(oracle, goal, nodes, timing_stats=timing)
     coin = CoinPolicy(seed=42)
     greedy = GreedyPolicy(goal, nodes)
 
@@ -177,6 +222,7 @@ def main():
     tick = last_tick
     while tick < max_steps and not all(s["arrived"] for s in states.values()):
         tick += 1
+        timing.start_tick()
         for name in ["fly", "coin", "greedy"]:
             state = states[name]
             if state["arrived"]:
@@ -209,6 +255,8 @@ def main():
                 "delta_m": round(delta, 1),
                 "candidates": extra.get("candidates") if extra else None,
             }
+            if extra and name == "fly":
+                line["consult_ms_total"] = sum(c.get("consult_ms", 0) for c in extra.get("candidates", []))
             state["node"] = chosen
             state["steps"] += 1
             state["distance_m"] += moved
@@ -242,8 +290,27 @@ def main():
                     }
                 )
                 print(f"✓ {name} arrived (tick {tick}, {state['steps']} steps)")
+        timing.end_tick()
+
+        # Progress with timing every 10 ticks
+        if tick % 10 == 0 or tick <= 5:
+            active = sum(1 for s in states.values() if not s["arrived"])
+            avg_ms = timing.avg_consult_ms()
+            p95_ms = timing.p95_consult_ms()
+            tick_s = timing.avg_tick_s()
+            remaining = max_steps - tick
+            eta_min = (remaining * tick_s) / 60 if tick_s > 0 else 0
+            print(
+                f"tick {tick}/{max_steps} | "
+                f"consult avg={avg_ms:.0f}ms p95={p95_ms:.0f}ms | "
+                f"tick={tick_s:.1f}s | "
+                f"{active} walkers active | "
+                f"ETA {eta_min:.0f}min",
+                flush=True,
+            )
 
     oracle.checkpoint()
+    total_consults = len(timing.consult_latencies)
     summary = {
         "run_id": args.run_id,
         "ticks": tick,
@@ -259,11 +326,24 @@ def main():
             }
             for name, s in states.items()
         },
+        "timing": {
+            "total_consults": total_consults,
+            "avg_consult_ms": round(timing.avg_consult_ms(), 1),
+            "p95_consult_ms": round(timing.p95_consult_ms(), 1),
+            "avg_tick_s": round(timing.avg_tick_s(), 2),
+            "total_consult_s": round(sum(timing.consult_latencies), 1),
+        },
         "ended_at": time.time(),
     }
     with open(summary_json_path(run_dir), "w") as f:
         json.dump(summary, f, indent=2)
     print(json.dumps(summary, indent=2))
+    print(
+        f"\nTiming summary: {total_consults} consults, "
+        f"avg={timing.avg_consult_ms():.0f}ms, p95={timing.p95_consult_ms():.0f}ms, "
+        f"total brain time={sum(timing.consult_latencies):.1f}s",
+        flush=True,
+    )
 
 
 def summary_json_path(run_dir):
