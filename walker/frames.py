@@ -46,6 +46,7 @@ def option_frame(run_dir, node, option_letter):
 
     from PIL import Image, ImageDraw
 
+    ensure_thumb(run_dir, node)
     thumb = Image.open(thumb_path(run_dir, node["id"])).convert("RGB")
     # cover-resize into a 320x150 viewport
     target_w, target_h = FRAME_W, FRAME_H - 30
