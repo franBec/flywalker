@@ -22,10 +22,22 @@ Rossio square to Manteigaria in Chiado. The corridor contains a 10,253-node conn
 
 Mapillary's `/images` endpoint rejects bboxes larger than about 200m (it 500s past ~1500 results and offers no pagination), so `corridor.py` fetches the corridor as a grid of 200m tiles, filters each page to images within 200m of the start-goal line, and merges results by id. The list endpoint never returns `sequence_id`, so adjacency is purely spatial: each image links to its nearest neighbors within 30m. Dense cities produce disconnected capture islands, so the route keeps only the connected component that contains the goal, then snaps the requested start to the nearest node inside it.
 
+## Results (run v1)
+
+| Walker | Steps | Distance walked | Final distance to goal | Arrived? |
+|--------|-------|-----------------|------------------------|----------|
+| FLY | 1200 | 444.4m | 1000.9m | No |
+| COIN | 1200 | 406.9m | 1004.1m | No |
+| GREEDY | 1200 | 869.0m | 1000.4m | No |
+
+None arrived. All three walkers ended ~1000m from the goal after 1200 steps (started at ~990m). FLY statistically resembles COIN — the connectome-driven walker did not beat the random baseline. GREEDY walked more distance but still didn't arrive, suggesting the corridor's spatial graph doesn't have a connected path that reduces crow-flies distance to the goal.
+
+Timing: 76 brain consults, avg 4,542ms per consult, p95 5,934ms, total brain time 362.7s (~6 minutes). The walk itself took ~8 hours wall time (including preemption recovery from spot VM).
+
 ## Layout
 
 ```
-infra/       Terraform: spot e2-highmem-4 (16GB), STOP on preemption, no inbound ports
+infra/       Terraform: on-demand e2-highmem-4 (16GB), no inbound ports
 oracle/      FastAPI sidecar wrapping Stonkfly's neural package
 walker/      Mapillary corridor builder, walker loop, replay renderer
 compose.yml  prepare (dataset) -> oracle -> walker, shared /data volume
@@ -59,18 +71,101 @@ In the verified smoke run FLY arrived in 59 steps, COIN wandered to 298m and gav
 
 ## Run on GCP
 
-1. Push this repo to GitHub. The VM clones it on boot (`infra/variables.tf` holds the URL and ref).
-2. From the repo root: `cp .env.sample .env` and fill in `MAPILLARY_TOKEN`.
-3. `cd infra && terraform init && terraform plan && terraform apply`. The module creates a spot `e2-highmem-4` in `europe-west4` with a 25GB boot disk. `instance_termination_action = STOP` keeps the disk across preemptions and `automatic_restart` brings the VM back. The startup script installs Docker, clones the repo, writes `.env` from instance metadata, and runs compose.
-4. First boot: compose runs the `prepare` service, which downloads the MaleCNS dataset and builds the graph into the shared `/data` volume. The oracle compiles Stonkfly's LIF kernel on first brain load and serves on port 8000 inside the Docker network. The walker then runs the walk, resuming from `walk.jsonl` if the VM was preempted.
-5. Pull artifacts with the `pull_artifacts_command` terraform output (`gcloud compute scp --recurse flywalker:/data/runs ./local-runs`). The VM exposes no ports, so artifacts leave the VM this way.
-6. `python walker/replay.py --run-id <run-id> --data-dir local-runs` regenerates the replay page from the pulled artifacts. Sync it wherever you like.
+### Prerequisites
 
-Estimated cost: about $1-3 for a weekend of spot time, a few cents of disk. `terraform destroy` removes everything.
+- GCP project with billing enabled and Compute Engine API activated
+- `gcloud` authenticated (`gcloud auth login` and `gcloud auth application-default login`)
+- Terraform (or use the pre-built binary: `curl -fsSL https://releases.hashicorp.com/terraform/1.14.0/terraform_1.14.0_linux_amd64.zip | funzip > /tmp/terraform && chmod +x /tmp/terraform`)
+
+### Setup
+
+1. Push this repo to GitHub. The VM clones it on boot (`infra/variables.tf` holds the URL and ref).
+2. Create `infra/terraform.tfvars` (gitignored):
+   ```hcl
+   project_id      = "flywalker"
+   mapillary_token = "MLY|YOUR_TOKEN_HERE"
+   ```
+3. `cd infra && terraform init && terraform plan && terraform apply`. The module creates an on-demand `e2-highmem-4` in `europe-west4` with a 25GB boot disk.
+4. First boot: the startup script installs Docker, creates 4GB swap, clones the repo, writes `.env` from instance metadata, and runs `docker compose up -d --build`.
+5. The `prepare` service downloads the MaleCNS dataset (~1GB) and builds the graph into the shared `/data` volume. The oracle compiles Stonkfly's LIF kernel on first brain load (tens of seconds). The walker then starts the walk.
+
+### Monitoring
+
+```bash
+# SSH into the VM
+gcloud compute ssh flywalker --zone=europe-west4-a
+
+# Check services
+sudo docker compose -f /opt/flywalker/compose.yml ps
+
+# Watch the walk (stdout is buffered; timing lines every 10 ticks)
+sudo docker compose -f /opt/flywalker/compose.yml logs -f walker
+
+# Check walk progress via JSONL (works even when stdout is buffered)
+sudo docker compose -f /opt/flywalker/compose.yml exec walker sh -c 'wc -l /data/runs/nata/walk.jsonl && tail -1 /data/runs/nata/walk.jsonl'
+
+# Check consult latency
+sudo docker compose -f /opt/flywalker/compose.yml exec walker sh -c 'tail -1 /data/runs/nata/walk.jsonl' | python3 -m json.tool | grep consult_ms
+```
+
+### Timing
+
+The walker prints timing lines every 10 ticks:
+```
+tick 40/1200 | consult avg=5601ms p95=13508ms | tick=28.4s | 3 walkers active | ETA 548min
+```
+
+Real MaleCNS consult latency: ~5-9 seconds per consult (~40-50 seconds per tick with 5-8 candidates). A 1200-step walk takes ~8-10 hours.
+
+### Pull artifacts
+
+Data lives on a Docker named volume, not directly on the VM filesystem.
+
+```bash
+# Create a tarball on the VM
+gcloud compute ssh flywalker --zone=europe-west4-a --command="sudo tar czf /tmp/nata.tar.gz -C /var/lib/docker/volumes/flywalker_data/_data/runs nata"
+
+# Download
+mkdir -p local-runs
+gcloud compute scp flywalker:/tmp/nata.tar.gz ./local-runs/nata.tar.gz --zone=europe-west4-a
+
+# Extract
+cd local-runs && tar xzf nata.tar.gz
+```
+
+### Render and view replay
+
+```bash
+python walker/replay.py --run-id nata --data-dir local-runs
+
+# Serve locally (OSM tiles block file:// requests)
+cd local-runs/runs/nata/replay && python3 -m http.server 8080
+# Open http://localhost:8080
+```
+
+### Cleanup
+
+```bash
+cd infra && terraform destroy
+```
+
+Estimated cost: ~$2-3 for an on-demand run (~10 hours), a few cents of disk.
+
+### Spot VM alternative
+
+Spot VMs are ~2-3x cheaper but get preempted frequently (~every 30-60 minutes). The walk resumes from `walk.jsonl` after preemption, but you must manually restart the VM (`gcloud compute instances start flywalker --zone=europe-west4-a`). If using spot, you also need to fix `.env` after each restart (the startup script's heredoc sometimes fails to write route variables). On-demand is recommended for a single uninterrupted run.
 
 ## Artifacts
 
-`replay.py` writes `replay/index.html`, a self-contained page with animated polylines for all three walkers, the flycam frame per step, distance-to-goal curves, the dopamine ledger, a final score table, and the honesty section. `export_video` is a stub that awaits an ffmpeg compositing step; the replay page is the v1 artifact.
+`replay.py` writes `replay/index.html`, a self-contained page with animated polylines for all three walkers, the flycam frame per step, distance-to-goal curves, the dopamine ledger, a final score table, and the honesty section.
+
+**Viewing the replay:** OSM tiles block `file://` requests. Serve the replay directory locally:
+```bash
+cd local-runs/runs/nata/replay && python3 -m http.server 8080
+# Open http://localhost:8080
+```
+
+`export_video` is a stub that awaits an ffmpeg compositing step; the replay page is the v1 artifact.
 
 ## Credits
 
