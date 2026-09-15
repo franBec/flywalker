@@ -20,7 +20,10 @@ across the full boost range) and is now OFF by default (GOAL_SALIENCE_K=0).
 The goal channel is the chart-native goal meter: a dark column rendered like
 Stonkfly's own chart ink whose height encodes how much closer the candidate
 gets the fly to the nata. GOAL_METER_W / GOAL_METER_H size it; GOAL_SALIENCE_L
-normalizes the delta.
+normalizes the delta. On the live MaleCNS brain the meter was also measured
+inert (per-junction corr -0.07 over 32 junctions, fly hovered 125m from the
+goal while GREEDY descended): retained as the v2 experiment's input channel,
+documented honestly in the results.
 """
 
 import os
