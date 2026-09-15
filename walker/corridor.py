@@ -93,10 +93,11 @@ def fetch_images(
     return images
 
 
-def _tile_bboxes(bbox, tile_m=200.0):
+def _tile_bboxes(bbox, tile_m=100.0):
     """Split bbox into ~tile_m squares. Empirically, the /images endpoint
     500s when a bbox yields more than ~1500 results (no pagination offered
-    for this query shape), so tiles stay small and results get merged."""
+    for this query shape), so tiles stay small and results get merged.
+    Dense Lisbon requires 100m tiles as of 2026-09 (150m+ 500s)."""
     import math
 
     south, west, north, east = bbox
@@ -118,7 +119,7 @@ def _tile_bboxes(bbox, tile_m=200.0):
     return tiles
 
 
-def fetch_images_tiled(bbox, token, session=None, tile_m=200.0, line_filter=None, stop_after=30000, politeness_s=0.4):
+def fetch_images_tiled(bbox, token, session=None, tile_m=100.0, line_filter=None, stop_after=30000, politeness_s=0.4):
     """Fetch a dense city corridor by tiling the bbox and merging (dedup by id).
 
     stop_after exists as a runaway guard; set it high enough to cover the

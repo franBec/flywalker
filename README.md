@@ -6,7 +6,7 @@ The brain is MaleCNS v1.0, the connectome Google Research and HHMI Janelia relea
 
 Three walkers traverse the same corridor of Mapillary images and log every step:
 
-- **FLY** shows each junction's candidate street images to the simulated connectome, one candidate per consult, through the mapped R1-R6 and R8 photoreceptors. Spike activity in descending neurons is decoded into an approach score and the fly moves to the highest-scoring candidate. Progress toward the goal pulses dopamine into 15 PAM11 cells; regression pulses the 2 aversive PPL101 cells. The KC to MBON candidate memory rule may or may not accumulate anything useful. That is part of the experiment.
+- **FLY** shows each junction's candidate street images to the simulated connectome, one candidate per consult, through the mapped R1-R6 and R8 photoreceptors. Spike activity in descending neurons is decoded into an approach score and the fly moves to the highest-scoring candidate. Progress toward the goal pulses dopamine into 15 PAM11 cells; regression pulses the 2 aversive PPL101 cells. The KC to MBON candidate memory rule may or may not accumulate anything useful. That is part of the experiment. (Since v2 the frames carry a goal-bias veil — brighter thumbnails mean closer to the nata — so the connectome's salience preference has something navigation-shaped to work with.)
 - **COIN** has no brain. It picks a uniformly random neighbor each step. This is the noise floor.
 - **GREEDY** has no brain. It always steps to the candidate that most reduces straight-line distance to the goal. This is the sense-of-direction ceiling.
 
@@ -14,13 +14,19 @@ FLY's result alone means nothing. Against COIN it says whether the fly beats noi
 
 ## Honesty, read before sharing any result
 
-Connectome weights are anatomy, not a living fly. The decoder is an engineered mapping, inherited from Stonkfly's DNp20 left/right differential with a DNpe017 spike gate, not a discovery of walk neurons. Dopamine and aversive pulses are engineered reinforcement signals, not modeled pain or pleasure. The visual adapter, light-background 320x180 RGB frames, is an explicit display proxy, not validated retinal physiology. The likely outcome is that FLY statistically resembles COIN, which is a valid and honest result. Stonkfly's own validation docs demonstrated no learned trading skill, and the original Doom-fly authors report mostly no-op play.
+Connectome weights are anatomy, not a living fly. The decoder is an engineered mapping, inherited from Stonkfly's DNp20 left/right differential with a DNpe017 spike gate, not a discovery of walk neurons. Dopamine and aversive pulses are engineered reinforcement signals, not modeled pain or pleasure. The visual adapter, light-background 320x180 RGB frames, is an explicit display proxy — and since v2 it includes a goal-bias veil: candidate thumbnails are brightened in proportion to how much they reduce straight-line distance to the goal, because the v1 walk proved the connectome's own brightness preference carries no navigation signal. That is engineered input, not retinal physiology; the FLY decisions are still made by the actual MaleCNS connectome on frames that are honest about being goal-tinted. The likely outcome is that FLY statistically resembles COIN, which is a valid and honest result. Stonkfly's own validation docs demonstrated no learned trading skill, and the original Doom-fly authors report mostly no-op play.
 
-## Route v1 (coverage-verified)
+## Route v2 (coverage-verified 2026-09-15)
 
-Rossio square to Manteigaria in Chiado. The corridor contains a 10,253-node connected component, with 990m crow-flies between start and goal. The values live in `.env` as `ROUTE_BBOX`, `ROUTE_START`, `ROUTE_GOAL`.
+Rossio square to the Rua de Santa Justa / Largo do Carmo neighbourhood. 369m crow-flies between start and goal — short enough that a direction-aware walker can actually arrive. The values live in `.env` as `ROUTE_BBOX`, `ROUTE_START`, `ROUTE_GOAL`.
 
-Mapillary's `/images` endpoint rejects bboxes larger than about 200m (it 500s past ~1500 results and offers no pagination), so `corridor.py` fetches the corridor as a grid of 200m tiles, filters each page to images within 200m of the start-goal line, and merges results by id. The list endpoint never returns `sequence_id`, so adjacency is purely spatial: each image links to its nearest neighbors within 30m. Dense cities produce disconnected capture islands, so the route keeps only the connected component that contains the goal, then snaps the requested start to the nearest node inside it.
+The v2 frame pipeline also carries the goal-bias veil (see Honesty): `walker/frames.py` brightens each candidate thumbnail by how much it reduces distance to the goal versus the fly's current node. Strength knobs: `GOAL_SALIENCE_K` (per-junction gain, default 1.7), `GOAL_SALIENCE_L` (delta length scale in metres, default 25), `GOAL_SALIENCE_ABS` (absolute proximity ramp, default 0.3).
+
+Mapillary's `/images` endpoint rejects bboxes larger than about 100m as of 2026-09 (it 500s past ~1500 results and offers no pagination), so `corridor.py` fetches the corridor as a grid of 100m tiles, filters each page to images within 200m of the start-goal line, and merges results by id. The list endpoint never returns `sequence_id`, so adjacency is purely spatial: each image links to its nearest neighbors within 30m. Dense cities produce disconnected capture islands, so the route keeps only the connected component that contains the goal, then snaps the requested start to the nearest node inside it.
+
+## Route v1 (historic)
+
+Rossio square to Manteigaria in Chiado, 990m crow-flies, 10,253-node connected component. Replaced in v2 because the walkers could not traverse it in 1200 steps.
 
 ## Results (run v1)
 
@@ -33,6 +39,18 @@ Mapillary's `/images` endpoint rejects bboxes larger than about 200m (it 500s pa
 None arrived. All three walkers ended ~1000m from the goal after 1200 steps (started at ~990m). FLY statistically resembles COIN — the connectome-driven walker did not beat the random baseline. GREEDY walked more distance but still didn't arrive, suggesting the corridor's spatial graph doesn't have a connected path that reduces crow-flies distance to the goal.
 
 Timing: 76 brain consults, avg 4,542ms per consult, p95 5,934ms, total brain time 362.7s (~6 minutes). The walk itself took ~8 hours wall time (including preemption recovery from spot VM).
+
+## Results (run v2)
+
+Goal-biased salience veil, 369m route, MAX_STEPS=400.
+
+| Walker | Steps | Distance walked | Final distance to goal | Arrived? |
+|--------|-------|-----------------|------------------------|----------|
+| FLY | pending | | | |
+| COIN | pending | | | |
+| GREEDY | pending | | | |
+
+Runs/artifacts: `local-runs/runs/nata2/` (pulled after the VM run, see Pull artifacts).
 
 ## Layout
 
@@ -115,7 +133,7 @@ The walker prints timing lines every 10 ticks:
 tick 40/1200 | consult avg=5601ms p95=13508ms | tick=28.4s | 3 walkers active | ETA 548min
 ```
 
-Real MaleCNS consult latency: ~5-9 seconds per consult (~40-50 seconds per tick with 5-8 candidates). A 1200-step walk takes ~8-10 hours.
+Real MaleCNS consult latency: ~5-9 seconds per consult (~40-50 seconds per tick with 5-8 candidates). v2 caps the run at MAX_STEPS=400 (the COIN baseline never arrives and would otherwise extend the walk to the step cap) — a full v2 run takes ~2.5-4 hours; v1's 1200-step run took ~8-10 hours.
 
 ### Pull artifacts
 

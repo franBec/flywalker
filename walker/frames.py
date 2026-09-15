@@ -4,6 +4,15 @@ Each option is its own 320x180 frame on a light background (Stonkfly's chart
 aesthetic: light background was required for meaningful KC activation, see
 docs/model.md "dark chart barely activated KCs"). One candidate per consult,
 round-robin, exactly like Stonkfly presents assets.
+
+Goal-bias veil (v2): the thumbnail's brightness encodes how much the
+candidate reduces straight-line distance to the goal compared to the fly's
+current node. Brighter = closer to the nata. This is an engineered input, not
+retinal physiology - the connectome still makes the decisions, but the visual
+salience it reads is goal-directed. Strength is tunable via GOAL_SALIENCE_K
+(per-junction delta gain), GOAL_SALIENCE_L (delta length scale, metres) and
+GOAL_SALIENCE_ABS (absolute proximity gain for the "brighter near the goal"
+ramp seen in the flycam).
 """
 
 import os
@@ -11,6 +20,44 @@ import os
 FRAME_W, FRAME_H = 320, 180
 LIGHT_BG = (235, 240, 249)
 INK = (19, 36, 71)
+
+GOAL_SALIENCE_K = 1.7
+GOAL_SALIENCE_L = 25.0
+GOAL_SALIENCE_ABS = 0.3
+
+
+def salience_params():
+    """(k, length_m, abs_gain) from env, falling back to the defaults above."""
+
+    def f(name, default):
+        return float(os.environ.get(name, default))
+
+    return (
+        f("GOAL_SALIENCE_K", GOAL_SALIENCE_K),
+        f("GOAL_SALIENCE_L", GOAL_SALIENCE_L),
+        f("GOAL_SALIENCE_ABS", GOAL_SALIENCE_ABS),
+    )
+
+
+def goal_boost(current, candidate, goal):
+    """Multiplicative brightness factor that encodes goal direction.
+
+    delta > 0 means the candidate sits closer to the goal than the current
+    node; those candidates come out brighter. The absolute proximity term adds
+    a mild overall ramp so frames brighten as the fly approaches the nata.
+    Deterministic: same inputs, same boost (resume-safe).
+    """
+    from corridor import haversine_m
+
+    cur = haversine_m(current["lat"], current["lng"], goal["lat"], goal["lng"])
+    cand = haversine_m(candidate["lat"], candidate["lng"], goal["lat"], goal["lng"])
+    k, length_m, abs_gain = salience_params()
+    delta = max(-1.0, min(1.0, (cur - cand) / max(1.0, length_m)))
+    proximity = max(0.0, min(1.0, 1.0 - cand / max(1.0, cur)))
+    boost = (1.0 + abs_gain * proximity) * (1.0 + k * delta)
+    # clamp: keep the brightest candidate from clipping to uniform white (the
+    # real brain needs image contrast for KC activation, not flat brightness)
+    return max(0.4, min(1.5, boost))
 
 
 def thumbs_dir(run_dir):
@@ -40,14 +87,22 @@ def ensure_thumb(run_dir, node, session=None):
     return path
 
 
-def option_frame(run_dir, node, option_letter):
-    """Render one candidate as an RGB uint8 PNG frame; returns PNG bytes."""
+def option_frame(run_dir, current, candidate, option_letter, goal):
+    """Render one candidate as an RGB uint8 PNG frame; returns PNG bytes.
+
+    current/candidate/goal are coordinate records ({lat, lng}) - the boost
+    passed to the thumbnail is a pure function of them, so consulting and
+    re-rendering (flycam) always produce identical bytes.
+    """
     import io
 
-    from PIL import Image, ImageDraw
+    from PIL import Image, ImageDraw, ImageEnhance
 
-    ensure_thumb(run_dir, node)
-    thumb = Image.open(thumb_path(run_dir, node["id"])).convert("RGB")
+    ensure_thumb(run_dir, candidate)
+    thumb = Image.open(thumb_path(run_dir, candidate["id"])).convert("RGB")
+    boost = goal_boost(current, candidate, goal)
+    if abs(boost - 1.0) > 1e-6:
+        thumb = ImageEnhance.Brightness(thumb).enhance(boost)
     # cover-resize into a 320x150 viewport
     target_w, target_h = FRAME_W, FRAME_H - 30
     scale = max(target_w / thumb.width, target_h / thumb.height)

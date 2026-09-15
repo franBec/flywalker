@@ -95,10 +95,11 @@ class FlyPolicy:
         from frames import option_frame
 
         letters = ["A", "B", "C", "D", "E"]
+        current = self.nodes[node]
         results = []
         for i, (letter, nid) in enumerate(zip(letters, candidates)):
             rec = self.nodes[nid]
-            frame = option_frame(run_dir, rec, letter)
+            frame = option_frame(run_dir, current, rec, letter, self.goal)
             reinforcement = self.pending_sign if i == 0 else None
             t0 = time.monotonic()
             obs = self.oracle.consult(frame, reinforcement)

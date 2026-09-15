@@ -237,6 +237,7 @@ def main():
                 print(f"{name} failed at tick {tick}: {exc}", flush=True)
                 raise
             rec = nodes[state["node"]]
+            moved_from = state["node"]
             dst = nodes[chosen]
             moved = corridor.haversine_m(rec["lat"], rec["lng"], dst["lat"], dst["lng"])
             dist = corridor.haversine_m(dst["lat"], dst["lng"], goal["lat"], goal["lng"])
@@ -276,7 +277,7 @@ def main():
                 letter = next(
                     c["letter"] for c in extra["candidates"] if c["node"] == chosen
                 )
-                save_fly_frame(run_dir, tick, nodes, chosen, letter)
+                save_fly_frame(run_dir, tick, nodes, moved_from, chosen, letter, goal)
             logger.log(line)
             if dist <= arrival_radius:
                 state["arrived"] = True
@@ -309,7 +310,12 @@ def main():
                 flush=True,
             )
 
-    oracle.checkpoint()
+    try:
+        oracle.checkpoint()
+    except Exception as exc:
+        # a failed final checkpoint must not lose the summary (resume-on-reboot
+        # would otherwise re-walk a finished run from walk.jsonl)
+        print(f"final checkpoint failed (continuing): {exc}", flush=True)
     total_consults = len(timing.consult_latencies)
     summary = {
         "run_id": args.run_id,
@@ -370,7 +376,7 @@ def retry_call(fn, attempts=20, base_delay=5):
             delay = min(delay * 2, 120)
 
 
-def save_fly_frame(run_dir, tick, nodes, chosen, letter):
+def save_fly_frame(run_dir, tick, nodes, current_id, chosen, letter, goal):
     """Re-render (deterministic) the chosen candidate's frame for the flycam."""
     from frames import option_frame
 
@@ -379,7 +385,7 @@ def save_fly_frame(run_dir, tick, nodes, chosen, letter):
     path = os.path.join(frames_dir, f"{tick:05d}.png")
     tmp = path + ".partial"
     with open(tmp, "wb") as f:
-        f.write(option_frame(run_dir, nodes[chosen], letter))
+        f.write(option_frame(run_dir, nodes[current_id], nodes[chosen], letter, goal))
     os.replace(tmp, path)
 
 
