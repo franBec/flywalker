@@ -2,10 +2,8 @@ locals {
   zone = var.zone != "" ? var.zone : "${var.region}-a"
 }
 
-# Spot VM with STOP-on-preemption:
-#   - automatic_restart brings it back when capacity returns
-#   - instance_termination_action = STOP keeps the boot disk (dataset, brain
-#     checkpoints, run logs survive preemption)
+# On-demand VM: no preemptions, walk completes in one uninterrupted run.
+# ~2-3x more expensive than spot but negligible for a weekend toy (~$2-3 total).
 resource "google_compute_instance" "flywalker" {
   name         = "flywalker"
   machine_type = var.machine_type
@@ -29,11 +27,8 @@ resource "google_compute_instance" "flywalker" {
   }
 
   scheduling {
-    provisioning_model           = "SPOT"
-    preemptible                  = true
-    automatic_restart            = false
-    instance_termination_action  = "STOP"
-    on_host_maintenance          = "TERMINATE"
+    automatic_restart   = true
+    on_host_maintenance = "MIGRATE"
   }
 
   metadata = {
