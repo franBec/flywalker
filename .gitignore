@@ -1,0 +1,24 @@
+# secrets
+.env
+
+# terraform
+infra/.terraform/
+infra/.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+
+# run artifacts
+runs/
+replay-out/
+data/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+
+# editors
+.idea/
+.vscode/

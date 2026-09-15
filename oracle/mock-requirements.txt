@@ -1,0 +1,6 @@
+# Mock-only local dependencies. The real oracle image pins Stonkfly's own
+# versions (see requirements.txt); the mock path needs only these four.
+fastapi==0.120.0
+uvicorn==0.40.0
+Pillow==12.3.0
+numpy==2.4.6

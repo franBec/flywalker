@@ -1,0 +1,8 @@
+# Real brain: MaleCNS dataset + Stonkfly kernel (needs g++ at runtime, apt-installed below)
+# Pinned to Stonkfly's own versions so the vendored kernel/vendor contract holds.
+numpy==2.4.6
+pandas==3.0.5
+pyarrow==25.0.1
+Pillow==12.3.0
+fastapi==0.120.0
+uvicorn==0.40.0

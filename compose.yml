@@ -1,0 +1,54 @@
+# flywalker stack. Everything is outbound-only: no published ports.
+# - prepare: one-shot MaleCNS dataset download + graph build into /data
+# - oracle:  the fly brain HTTP API (FastAPI wrapping Stonkfly's neural package)
+# - walker:  the run itself (Mapillary corridor + FLY/COIN/GREEDY + JSONL log)
+
+services:
+  prepare:
+    build: ./oracle
+    entrypoint: sh -c 'test -f /data/graph.npz || python -m stonkfly prepare'
+    environment:
+      - STONKFLY_DATA=/data
+    volumes:
+      - data:/data
+    restart: "no"
+
+  oracle:
+    build: ./oracle
+    environment:
+      - FLY_BRAIN=${FLY_BRAIN:-real}
+      - STONKFLY_HOME=/opt/stonkfly
+      - STONKFLY_DATA=/data
+      - DATA_DIR=/data
+      - CHECKPOINT_EVERY=25
+    volumes:
+      - data:/data
+    depends_on:
+      prepare:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: always
+
+  walker:
+    build: ./walker
+    env_file: .env
+    environment:
+      - ORACLE_URL=http://oracle:8000
+      - DATA_DIR=/data
+    volumes:
+      - data:/data
+    depends_on:
+      oracle:
+        condition: service_healthy
+    # one run per boot: the VM's startup script runs compose on every boot,
+    # and walk.py resumes an in-progress run from walk.jsonl or exits cleanly
+    # if summary.json exists. No restart policy -> no crash-loop.
+    restart: "no"
+    command: ["python", "walk.py"]
+
+volumes:
+  data:
