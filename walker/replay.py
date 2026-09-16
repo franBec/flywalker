@@ -9,6 +9,8 @@ dependency: Leaflet 1.9.4 + OpenStreetMap tiles):
 - dark cinematic theme, run card with MaleCNS badges and consult stats
 - hand-drawn animated fly mark in the header; on the map the FLY walker
   is a fly that turns to its heading
+- flycam loads .webp frames first with a .png fallback, so the committed
+  sample build (sample/) stays small
 - "what you're looking at" explainer: the cast, the map keys, and why
   the cockpit measures decoded approach in Hz
 - junction theater map: subgraph buffered around the walker trails, GREEDY
@@ -1186,6 +1188,18 @@ const chipEl = {};
 const camMsg = document.getElementById("cam-msg");
 const flycam = document.getElementById("flycam");
 const camLabel = document.getElementById("cam-label");
+let frameTick = 0;
+flycam.addEventListener("error", function () {
+  if (!flycam.dataset.ext) return;
+  if (flycam.dataset.ext === "webp") {
+    flycam.dataset.ext = "png";
+    flycam.src = "frames/" + pad5(frameTick) + ".png";
+  } else {
+    flycam.style.visibility = "hidden";
+    camMsg.style.display = "flex";
+    camMsg.textContent = "frame " + pad5(frameTick) + " is missing from this build";
+  }
+});
 
 function setPill(el, show, cls, html) {
   el.style.display = show ? "" : "none";
@@ -1291,12 +1305,15 @@ function render(tick) {
     if (inner) inner.style.transform =
       "rotate(" + bearingDeg(P.trails.fly[flyCut - 1], P.trails.fly[flyCut]).toFixed(0) + "deg)";
   }
-  /* flycam */
+  /* flycam — the sample build ships .webp frames, .png is the fallback */
+  frameTick = tick;
   if (tick >= 1 && tick <= P.frames) {
-    flycam.src = "frames/" + pad5(tick) + ".png";
+    flycam.dataset.ext = "webp";
+    flycam.src = "frames/" + pad5(tick) + ".webp";
     flycam.style.visibility = "";
     camMsg.style.display = "none";
   } else {
+    flycam.dataset.ext = "";
     flycam.style.visibility = "hidden";
     camMsg.style.display = "flex";
     camMsg.textContent = tick === 0 ? "no frame before the first step" : "no frame for this tick";
@@ -1419,7 +1436,8 @@ def render(run_dir):
         "ycap": round(ycap, 1),
         "walk_cap": round(walk_cap, 1),
         "max_tick": max((p[0] for s in series.values() for p in s), default=0),
-        "frames": len([f for f in os.listdir(frames_src) if f.endswith(".png")])
+        "frames": len([f for f in os.listdir(frames_src)
+                       if f.endswith((".png", ".webp"))])
         if os.path.isdir(frames_src) else 0,
     }
 

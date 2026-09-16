@@ -64,6 +64,8 @@ Runs/artifacts: `local-runs/runs/nata2/` (route.json, walk.jsonl, summary.json, 
 infra/       Terraform: on-demand e2-highmem-4 (16GB), no inbound ports
 oracle/      FastAPI sidecar wrapping Stonkfly's neural package
 walker/      Mapillary corridor builder, walker loop, replay renderer
+tools/       artifact helpers (sample packaging)
+sample/      committed sample run for clone-and-watch
 compose.yml  prepare (dataset) -> oracle -> walker, shared /data volume
 ```
 
@@ -188,6 +190,17 @@ Spot VMs are ~2-3x cheaper but get preempted frequently (~every 30-60 minutes). 
 cd local-runs/runs/nata/replay && python3 -m http.server 8080
 # Open http://localhost:8080
 ```
+
+### Watch a real run without running anything
+
+The repo ships a real run in `sample/nata2/` (the v2 corridor, Santa Justa → Carmo, 400 ticks, GREEDY arrived in 23 steps) so a fresh clone can watch it without the oracle, the MaleCNS dataset, or a Mapillary token:
+
+```bash
+cd sample/nata2/replay && python3 -m http.server 8080
+# Open http://localhost:8080
+```
+
+The flycam frames are re-encoded to WebP q80 (~4 MB instead of ~34 MB); the replay page prefers `.webp` and falls back to `.png`, and every score, chart and statistic is computed from the exact run logs. `route.json` and `summary.json` are byte-exact. Rebuild or extend the sample with `python tools/ship_sample.py`. The v1 run (`nata`) is not shipped: its 1,200 PNG frames weigh ~100 MB.
 
 `export_video` is a stub that awaits an ffmpeg compositing step; the replay page is the v1 artifact.
 
