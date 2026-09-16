@@ -7,6 +7,8 @@ runs/<run_id>/replay/ containing a self-contained index.html (only external
 dependency: Leaflet 1.9.4 + OpenStreetMap tiles):
 
 - dark cinematic theme, run card with MaleCNS badges and consult stats
+- hand-drawn animated fly mark in the header; on the map the FLY walker
+  is a fly that turns to its heading
 - "what you're looking at" explainer: the cast, the map keys, and why
   the cockpit measures decoded approach in Hz
 - junction theater map: subgraph buffered around the walker trails, GREEDY
@@ -389,6 +391,7 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>flywalker — a fruit fly brain looks for pastel de nata</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath d='M20 16 C10 6 3 12 6 22 C8 28 14 30 20 26 Z' fill='%239fc4e8' opacity='.8'/%3E%3Cpath d='M28 16 C38 6 45 12 42 22 C40 28 34 30 28 26 Z' fill='%239fc4e8' opacity='.8'/%3E%3Cellipse cx='24' cy='21' rx='5.6' ry='7' fill='%23e8710a'/%3E%3Cellipse cx='24' cy='32' rx='6.2' ry='9' fill='%23e8710a'/%3E%3Ccircle cx='24' cy='10.5' r='5' fill='%23b15408'/%3E%3Ccircle cx='21.4' cy='9.6' r='2.6' fill='%231a0d04'/%3E%3Ccircle cx='26.6' cy='9.6' r='2.6' fill='%231a0d04'/%3E%3C/svg%3E"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
 :root {
@@ -415,6 +418,9 @@ button:focus-visible, input[type=range]:focus-visible, a:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   .nata-icon .ring { animation:none; opacity:.5; }
   .diff .l, .diff .r, .diff .n { transition:none; }
+  .hero-fly { animation:none; }
+  .fly-wing-l, .fly-wing-r { animation:none; }
+  .fly-marker-inner { transition:none; }
 }
 @media (max-width:600px) {
   input[type=range]::-webkit-slider-thumb { width:22px; height:22px; margin-top:-9px; }
@@ -432,6 +438,25 @@ button:focus-visible, input[type=range]:focus-visible, a:focus-visible {
 .kv { display:flex; flex-wrap:wrap; gap:6px 26px; font-size:13px;
   color:var(--muted); margin-top:10px; }
 .kv b { color:var(--text); font-weight:600; font-variant-numeric:tabular-nums; }
+.hero { display:flex; justify-content:space-between; gap:24px;
+  align-items:flex-start; }
+.hero-text { min-width:0; flex:1 1 auto; }
+.hero-fly { flex:0 0 auto; width:112px;
+  filter:drop-shadow(0 0 20px rgba(232,113,10,.3));
+  animation:bob 2.6s ease-in-out infinite; }
+.hero-fly svg { width:100%; height:auto; display:block; overflow:visible; }
+@media (max-width:720px) { .hero-fly { display:none; } }
+.fly-wing-l, .fly-wing-r { transform-box:view-box; }
+.fly-wing-l { transform-origin:52px 46px;
+  animation:flapL .18s ease-in-out infinite alternate; }
+.fly-wing-r { transform-origin:68px 46px;
+  animation:flapR .18s ease-in-out infinite alternate; }
+@keyframes flapL { from { transform:rotate(0deg); }
+  to { transform:rotate(-16deg); } }
+@keyframes flapR { from { transform:rotate(0deg); }
+  to { transform:rotate(16deg); } }
+@keyframes bob { 0%,100% { transform:translateY(0); }
+  50% { transform:translateY(-7px); } }
 .legend { display:flex; flex-wrap:wrap; gap:14px; font-size:12.5px;
   color:var(--muted); align-items:center; }
 .legend .sw { display:inline-block; width:10px; height:10px; border-radius:3px;
@@ -599,23 +624,77 @@ svg.chart { width:100%; height:auto; display:block; }
 .start-icon .dot { position:absolute; left:50%; top:50%; width:11px; height:11px;
   margin:-5px 0 0 -5px; border-radius:50%; background:#fff; border:2px solid #0b0e12;
   box-shadow:0 0 6px rgba(255,255,255,.6); }
+.fly-marker-inner { width:26px; height:26px; transform-origin:center;
+  transition:transform .35s ease-out; }
+.fly-marker svg { display:block; filter:drop-shadow(0 0 2.5px rgba(0,0,0,.85)); }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header style="padding-top:22px">
-    <h1>🪰 flywalker &nbsp;<span class="sub" style="display:inline">a MaleCNS fruit fly brain goes looking for pastel de nata</span></h1>
-    <div class="sub" style="margin-top:2px">
-      FLY = MaleCNS v1.0 spike-decoded decisions · COIN = random · GREEDY = crow-flies instinct. Three walkers, one Lisbon corridor, honest baselines.
+    <div class="hero">
+      <div class="hero-text">
+        <h1>flywalker &nbsp;<span class="sub" style="display:inline">a MaleCNS fruit fly brain goes looking for pastel de nata</span></h1>
+        <div class="sub" style="margin-top:2px">
+          FLY = MaleCNS v1.0 spike-decoded decisions · COIN = random · GREEDY = crow-flies instinct. Three walkers, one Lisbon corridor, honest baselines.
+        </div>
+        <div class="badges">
+          <span class="badge solid">MaleCNS v1.0</span>
+          <span class="badge">166,700 neurons</span>
+          <span class="badge">25.6M connections</span>
+          <span class="badge">124M synaptic contacts</span>
+          <span class="badge" id="b-run"></span>
+        </div>
+        <div class="kv" id="run-card"></div>
+      </div>
+      <div class="hero-fly" aria-hidden="true">
+        <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="flyBody" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#f5c65d"/>
+              <stop offset="0.45" stop-color="#e8710a"/>
+              <stop offset="1" stop-color="#8a3c05"/>
+            </linearGradient>
+            <linearGradient id="flyWing" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#cfe6ff" stop-opacity="0.55"/>
+              <stop offset="1" stop-color="#7ab3f5" stop-opacity="0.14"/>
+            </linearGradient>
+          </defs>
+          <g class="fly-wing-l">
+            <path d="M52 42 C30 18 8 26 10 52 C11 68 26 76 40 70 C46 66 50 54 52 42 Z"
+              fill="url(#flyWing)" stroke="#9fc4e8" stroke-width="1.2"/>
+            <path d="M50 46 C34 34 20 34 16 50 M48 56 C36 54 28 60 24 68"
+              fill="none" stroke="#9fc4e8" stroke-width="0.9" opacity="0.8"/>
+          </g>
+          <g class="fly-wing-r">
+            <path d="M68 42 C90 18 112 26 110 52 C109 68 94 76 80 70 C74 66 70 54 68 42 Z"
+              fill="url(#flyWing)" stroke="#9fc4e8" stroke-width="1.2"/>
+            <path d="M70 46 C86 34 100 34 104 50 M72 56 C84 54 92 60 96 68"
+              fill="none" stroke="#9fc4e8" stroke-width="0.9" opacity="0.8"/>
+          </g>
+          <g stroke="#c25e08" stroke-width="2.4" stroke-linecap="round" fill="none">
+            <path d="M52 48 L30 38 L20 44"/>
+            <path d="M51 56 L26 54 L15 62"/>
+            <path d="M52 64 L30 74 L20 86"/>
+            <path d="M68 48 L90 38 L100 44"/>
+            <path d="M69 56 L94 54 L105 62"/>
+            <path d="M68 64 L90 74 L100 86"/>
+          </g>
+          <ellipse cx="60" cy="79" rx="12.5" ry="19" fill="url(#flyBody)"/>
+          <path d="M50 72 Q60 77 70 72 M49 80 Q60 85 71 80 M51 88 Q60 92 69 88"
+            stroke="#7a3404" stroke-width="1" fill="none" opacity="0.55"/>
+          <ellipse cx="60" cy="52" rx="11.5" ry="15" fill="url(#flyBody)"/>
+          <ellipse cx="57" cy="46" rx="3.4" ry="8" fill="#ffffff" opacity="0.18"/>
+          <circle cx="60" cy="30" r="9.5" fill="#a34a06"/>
+          <ellipse cx="52.5" cy="27.5" rx="5.4" ry="6.4" fill="#2b1608"
+            stroke="#f5c65d" stroke-width="0.9" transform="rotate(-14 52.5 27.5)"/>
+          <ellipse cx="67.5" cy="27.5" rx="5.4" ry="6.4" fill="#2b1608"
+            stroke="#f5c65d" stroke-width="0.9" transform="rotate(14 67.5 27.5)"/>
+          <path d="M56 22 Q50 14 44 12 M64 22 Q70 14 76 12"
+            stroke="#e8710a" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+        </svg>
+      </div>
     </div>
-    <div class="badges">
-      <span class="badge solid">MaleCNS v1.0</span>
-      <span class="badge">166,700 neurons</span>
-      <span class="badge">25.6M connections</span>
-      <span class="badge">124M synaptic contacts</span>
-      <span class="badge" id="b-run"></span>
-    </div>
-    <div class="kv" id="run-card"></div>
   </header>
 
   <section class="panel" style="padding:0;overflow:hidden">
@@ -831,6 +910,25 @@ L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
 }).addTo(map);
 
 const T = P.theater;
+const FLY_MARKER_SVG = '<svg viewBox="0 0 48 48" width="26" height="26">'
+  + '<g stroke="#e8710a" stroke-width="2.4" stroke-linecap="round" fill="none">'
+  + '<path d="M22 21 L11 14 M21 25 L9 25 M22 29 L11 35"/>'
+  + '<path d="M26 21 L37 14 M27 25 L39 25 M26 29 L37 35"/></g>'
+  + '<path d="M20 16 C10 6 3 12 6 22 C8 28 14 30 20 26 Z" fill="#9fc4e8" opacity=".8" stroke="#cfe6ff" stroke-width=".8"/>'
+  + '<path d="M28 16 C38 6 45 12 42 22 C40 28 34 30 28 26 Z" fill="#9fc4e8" opacity=".8" stroke="#cfe6ff" stroke-width=".8"/>'
+  + '<ellipse cx="24" cy="21" rx="5.6" ry="7" fill="#e8710a"/>'
+  + '<ellipse cx="24" cy="32" rx="6.2" ry="9" fill="#e8710a"/>'
+  + '<circle cx="24" cy="10.5" r="5" fill="#b15408"/>'
+  + '<circle cx="21.4" cy="9.6" r="2.6" fill="#1a0d04"/>'
+  + '<circle cx="26.6" cy="9.6" r="2.6" fill="#1a0d04"/>'
+  + '</svg>';
+function bearingDeg(a, b) {
+  const toRad = Math.PI / 180;
+  const y = Math.sin((b[1] - a[1]) * toRad) * Math.cos(b[0] * toRad);
+  const x = Math.cos(a[0] * toRad) * Math.sin(b[0] * toRad)
+    - Math.sin(a[0] * toRad) * Math.cos(b[0] * toRad) * Math.cos((b[1] - a[1]) * toRad);
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
 const nodeLL = T.nodes.map(function (p) { return L.latLng(p[0], p[1]); });
 if (T.edges.length) {
   const segs = [];
@@ -863,7 +961,15 @@ const fullTrail = {}, liveTrail = {}, mark = {};
 for (const name of ["fly", "coin", "greedy"]) {
   fullTrail[name] = L.polyline(P.trails[name], { color:COLORS[name], opacity:.3, weight:3, interactive:false }).addTo(map);
   liveTrail[name] = L.polyline([P.trails[name][0]], { color:COLORS[name], weight:5, opacity:.95, interactive:false }).addTo(map);
-  mark[name] = L.circleMarker(P.trails[name][0], { color:COLORS[name], radius:6, weight:2.5, fill:true, fillColor:COLORS[name], fillOpacity:1 }).addTo(map);
+  if (name === "fly") {
+    mark[name] = L.marker(P.trails[name][0], { icon:L.divIcon({
+      className:"fly-marker",
+      html:'<div class="fly-marker-inner">' + FLY_MARKER_SVG + '</div>',
+      iconSize:[26, 26], iconAnchor:[13, 13],
+    }), interactive:true }).addTo(map);
+  } else {
+    mark[name] = L.circleMarker(P.trails[name][0], { color:COLORS[name], radius:6, weight:2.5, fill:true, fillColor:COLORS[name], fillOpacity:1 }).addTo(map);
+  }
   liveTrail[name].bindTooltip(WALKER_LABEL(name), { sticky:true, direction:"top" });
   mark[name].bindTooltip(WALKER_LABEL(name), { sticky:true, direction:"top" });
 }
@@ -1176,6 +1282,14 @@ function render(tick) {
     mark[name].setLatLng(P.trails[name][Math.min(cut, P.trails[name].length - 1)]);
     const d = distAt[name][tick];
     chipEl[name].textContent = d === null ? "—" : d.toFixed(1) + " m";
+  }
+  /* the fly turns to its heading */
+  const flyCut = cutAt.fly[tick];
+  if (flyCut >= 1) {
+    const el = mark.fly.getElement();
+    const inner = el ? el.querySelector(".fly-marker-inner") : null;
+    if (inner) inner.style.transform =
+      "rotate(" + bearingDeg(P.trails.fly[flyCut - 1], P.trails.fly[flyCut]).toFixed(0) + "deg)";
   }
   /* flycam */
   if (tick >= 1 && tick <= P.frames) {
