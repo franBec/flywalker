@@ -20,7 +20,7 @@ Connectome weights are anatomy, not a living fly. The decoder is an engineered m
 
 Rossio square to the Rua de Santa Justa / Largo do Carmo neighbourhood. 369m crow-flies between start and goal — short enough that a direction-aware walker can actually arrive. The values live in `.env` as `ROUTE_BBOX`, `ROUTE_START`, `ROUTE_GOAL`.
 
-**Start position (2026-09-16):** the walker now starts on the goal-descent path at `38.716061,-9.140325` (125m crow-flies from the goal). The original Rossio start was a measured local minimum: within the spatial graph every edge from it increases distance to the goal, so neither GREEDY nor the goal-bias veil can move through it. Run `walker` analysis (BFS + greedy simulation on the cached route) located the first reachable node with a descending path.
+**Start position (2026-09-16):** the walker now starts on the goal-descent path at `38.716061,-9.140325` (125m crow-flies from the goal). The original Rossio start was a measured local minimum: within the spatial graph every edge from it increases distance to the goal, so neither GREEDY nor the goal-bias veil can move through it. Run `walker` analysis (BFS + greedy simulation on the cached route) located the first reachable node with a descending path. This made the corridor navigable (GREEDY arrived in 23 steps) and isolated the remaining blocker as the connectome's visual salience itself.
 
 The v2 frame pipeline also carries the goal signal as the display-adapter's chart-native goal meter (see Honesty): `walker/frames.py` renders a dark column whose height encodes how much each candidate reduces distance to the goal versus the fly's current node. Both the meter and the earlier brightness veil were measured inert against the live MaleCNS brain during v2's probe phase (veil: per-junction correlation ~+0.01, hz drift −1.8 Hz across the full boost range; meter: per-junction correlation −0.07 over 32 probe junctions while GREEDY descended the same corridor in 23 steps). Knobs: `GOAL_SALIENCE_K`/`GOAL_SALIENCE_ABS` (brightness veil, default off), `GOAL_SALIENCE_L` (delta length scale in metres, default 3), `GOAL_METER_W`/`GOAL_METER_H` (column size in px, 26×80).
 
@@ -44,15 +44,19 @@ Timing: 76 brain consults, avg 4,542ms per consult, p95 5,934ms, total brain tim
 
 ## Results (run v2)
 
-Goal-biased salience veil, 369m route, MAX_STEPS=400.
+Goal meter input channel, 125m Santa Justa corridor, MAX_STEPS=400.
 
 | Walker | Steps | Distance walked | Final distance to goal | Arrived? |
 |--------|-------|-----------------|------------------------|----------|
-| FLY | pending | | | |
-| COIN | pending | | | |
-| GREEDY | pending | | | |
+| FLY | 400 | 691.1m | 106.1m | No |
+| COIN | 400 | 776.7m | 117.7m | No |
+| GREEDY | 23 | 151.3m | 15.9m | Yes |
 
-Runs/artifacts: `local-runs/runs/nata2/` (pulled after the VM run, see Pull artifacts).
+GREEDY navigated the corridor cleanly and reached the nata. Neither FLY nor COIN did: the corridor's start pocket hands the fly a tight knot of near-equidistant captures, and both walkers burned their 400 ticks doing 690-780m of lateral walking inside it (FLY net −19.4m, COIN net −8.9m). FLY ended 11.6m closer than COIN and was closer on net distance, but only on 117/400 ticks (29%) — a direction-consistent but statistically weak edge, inseparable from random variation at tick resolution. The goal meter itself was probed inert against the live brain before the run (per-junction corr −0.07, n=32 junctions). The honest v2 read: a real connectome making real decisions on goal-tinted frames still cannot turn visual salience into navigation, even on a corridor where GREEDY walks the answer in 23 steps.
+
+Timing: 64 trackable consults in the tail window, avg 4,640ms per consult, p95 6,075ms, avg tick 23.3s. The full 400-tick run took ~2.6h wall time.
+
+Runs/artifacts: `local-runs/runs/nata2/` (route.json, walk.jsonl, summary.json, 400 flycam frames, thumbs). Replay: `local-runs/runs/nata2/replay/index.html`.
 
 ## Layout
 
