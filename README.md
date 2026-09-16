@@ -181,7 +181,7 @@ Spot VMs are ~2-3x cheaper but get preempted frequently (~every 30-60 minutes). 
 
 ## Artifacts
 
-`replay.py` writes `replay/index.html`, a self-contained page with animated polylines for all three walkers, the flycam frame per step, distance-to-goal curves, the dopamine ledger, a final score table, and the honesty section.
+`replay.py` renders `replay/index.html`, a self-contained, dark-cinematic replay page (only external dependency: Leaflet 1.9.4 + CARTO Voyager tiles). It embeds a junction-theater subgraph around the walker trails — with the GREEDY ghost path, per-walker GPS-density halos, and a pulsing goal marker — a what-the-fly-saw cockpit (flycam frame, candidate score bars A–E, DNp20 left/right differential meter, DNpe017 gate, consult latency, reinforcement badge, signed delta pill), a timeline player with key-moment markers (arrivals, closest approaches, dopamine pulses), synced distance-to-goal and cumulative-walked charts, a reinforcement ledger, data-derived honesty chips (e.g. "FLY closer than COIN on 117/400 ticks (29%)"), the two-column what-is-real/what-is-engineered honesty table, and a provenance footer. The page embeds the walk logs and the theater subgraph only; the heavy `route.json` stays alongside for provenance.
 
 **Viewing the replay:** OSM tiles block `file://` requests. Serve the replay directory locally:
 ```bash
