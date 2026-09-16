@@ -6,7 +6,7 @@ The brain is MaleCNS v1.0, the connectome Google Research and HHMI Janelia relea
 
 Three walkers traverse the same corridor of Mapillary images and log every step:
 
-- **FLY** shows each junction's candidate street images to the simulated connectome, one candidate per consult, through the mapped R1-R6 and R8 photoreceptors. Spike activity in descending neurons is decoded into an approach score and the fly moves to the highest-scoring candidate. Progress toward the goal pulses dopamine into 15 PAM11 cells; regression pulses the 2 aversive PPL101 cells. The KC to MBON candidate memory rule may or may not accumulate anything useful. That is part of the experiment. (Since v2 the frames carry a goal meter — a display-adapter column whose height says how close each candidate gets to the nata — so the connectome's salience has something navigation-shaped to react to.)
+- **FLY** shows each junction's candidate street images to the simulated connectome, one candidate per consult, through the mapped R1-R6 and R8 photoreceptors. Spike activity in descending neurons is decoded into an approach score and the fly moves to the highest-scoring candidate. Progress toward the goal pulses dopamine into 15 PAM11 cells; regression pulses the 2 aversive PPL101 cells. The KC to MBON candidate memory rule may or may not accumulate anything useful. That is part of the experiment. (The frames carry a goal meter — a display-adapter column whose height says how close each candidate gets to the nata — so the connectome's salience has something navigation-shaped to react to.)
 - **COIN** has no brain. It picks a uniformly random neighbor each step. This is the noise floor.
 - **GREEDY** has no brain. It always steps to the candidate that most reduces straight-line distance to the goal. This is the sense-of-direction ceiling.
 
@@ -14,37 +14,21 @@ FLY's result alone means nothing. Against COIN it says whether the fly beats noi
 
 ## Honesty, read before sharing any result
 
-Connectome weights are anatomy, not a living fly. The decoder is an engineered mapping, inherited from Stonkfly's DNp20 left/right differential with a DNpe017 spike gate, not a discovery of walk neurons. Dopamine and aversive pulses are engineered reinforcement signals, not modeled pain or pleasure. The visual adapter, light-background 320x180 RGB frames, is an explicit display proxy — and since v2 it includes a goal meter: a chart-ink column whose height encodes how much each candidate reduces straight-line distance to the goal, because the v1 walk proved the connectome's own visual salience carries no navigation signal. An earlier v2 attempt at a brightness veil was measured direction-blind against the real brain and reverted. That is engineered input, not retinal physiology; the FLY decisions are still made by the actual MaleCNS connectome on frames that are honest about being goal-tinted. The likely outcome is that FLY statistically resembles COIN, which is a valid and honest result. Stonkfly's own validation docs demonstrated no learned trading skill, and the original Doom-fly authors report mostly no-op play.
+Connectome weights are anatomy, not a living fly. The decoder is an engineered mapping, inherited from Stonkfly's DNp20 left/right differential with a DNpe017 spike gate, not a discovery of walk neurons. Dopamine and aversive pulses are engineered reinforcement signals, not modeled pain or pleasure. The visual adapter, light-background 320x180 RGB frames, is an explicit display proxy — it includes a goal meter: a chart-ink column whose height encodes how much each candidate reduces straight-line distance to the goal, because the connectome's own visual salience carries no navigation signal. An earlier attempt at a brightness veil was measured direction-blind against the real brain and reverted. That is engineered input, not retinal physiology; the FLY decisions are still made by the actual MaleCNS connectome on frames that are honest about being goal-tinted. The likely outcome is that FLY statistically resembles COIN, which is a valid and honest result. Stonkfly's own validation docs demonstrated no learned trading skill, and the original Doom-fly authors report mostly no-op play.
 
-## Route v2 (coverage-verified 2026-09-15)
+## The route
 
-Rossio square to the Rua de Santa Justa / Largo do Carmo neighbourhood. 369m crow-flies between start and goal — short enough that a direction-aware walker can actually arrive. The values live in `.env` as `ROUTE_BBOX`, `ROUTE_START`, `ROUTE_GOAL`.
+Santa Justa to Largo do Carmo, Lisbon. 125m crow-flies between start and goal — short enough that a direction-aware walker can actually arrive. The values live in `.env` as `ROUTE_BBOX`, `ROUTE_START`, `ROUTE_GOAL`.
 
-**Start position (2026-09-16):** the walker now starts on the goal-descent path at `38.716061,-9.140325` (125m crow-flies from the goal). The original Rossio start was a measured local minimum: within the spatial graph every edge from it increases distance to the goal, so neither GREEDY nor the goal-bias veil can move through it. Run `walker` analysis (BFS + greedy simulation on the cached route) located the first reachable node with a descending path. This made the corridor navigable (GREEDY arrived in 23 steps) and isolated the remaining blocker as the connectome's visual salience itself.
+**Start position (coverage-verified 2026-09-15):** `38.716061,-9.140325`, on the goal-descent path at 125m crow-flies from the goal. A Rossio start was tried first and discarded: it was a measured local minimum — within the spatial graph every edge from it increases distance to the goal, so neither GREEDY nor the goal-bias veil could move through it. Walker analysis (BFS + greedy simulation on the cached route) located the first reachable node with a descending path. That made the corridor navigable (GREEDY arrives in 23 steps) and isolated the remaining blocker as the connectome's visual salience itself.
 
-The v2 frame pipeline also carries the goal signal as the display-adapter's chart-native goal meter (see Honesty): `walker/frames.py` renders a dark column whose height encodes how much each candidate reduces distance to the goal versus the fly's current node. Both the meter and the earlier brightness veil were measured inert against the live MaleCNS brain during v2's probe phase (veil: per-junction correlation ~+0.01, hz drift −1.8 Hz across the full boost range; meter: per-junction correlation −0.07 over 32 probe junctions while GREEDY descended the same corridor in 23 steps). Knobs: `GOAL_SALIENCE_K`/`GOAL_SALIENCE_ABS` (brightness veil, default off), `GOAL_SALIENCE_L` (delta length scale in metres, default 3), `GOAL_METER_W`/`GOAL_METER_H` (column size in px, 26×80).
+The frame pipeline carries the goal signal as the display-adapter's chart-native goal meter (see Honesty): `walker/frames.py` renders a dark column whose height encodes how much each candidate reduces distance to the goal versus the fly's current node. Both the meter and the earlier brightness veil were measured inert against the live MaleCNS brain during the probe phase (veil: per-junction correlation ~+0.01, hz drift −1.8 Hz across the full boost range; meter: per-junction correlation −0.07 over 32 probe junctions while GREEDY descended the same corridor in 23 steps). Knobs: `GOAL_SALIENCE_K`/`GOAL_SALIENCE_ABS` (brightness veil, default off), `GOAL_SALIENCE_L` (delta length scale in metres, default 3), `GOAL_METER_W`/`GOAL_METER_H` (column size in px, 26×80).
 
 Mapillary's `/images` endpoint rejects bboxes larger than about 100m as of 2026-09 (it 500s past ~1500 results and offers no pagination), so `corridor.py` fetches the corridor as a grid of 100m tiles, filters each page to images within 200m of the start-goal line, and merges results by id. The list endpoint never returns `sequence_id`, so adjacency is purely spatial: each image links to its nearest neighbors within 30m. Dense cities produce disconnected capture islands, so the route keeps only the connected component that contains the goal, then snaps the requested start to the nearest node inside it.
 
-## Route v1 (historic)
+## Results
 
-Rossio square to Manteigaria in Chiado, 990m crow-flies, 10,253-node connected component. Replaced in v2 because the walkers could not traverse it in 1200 steps.
-
-## Results (run v1)
-
-| Walker | Steps | Distance walked | Final distance to goal | Arrived? |
-|--------|-------|-----------------|------------------------|----------|
-| FLY | 1200 | 444.4m | 1000.9m | No |
-| COIN | 1200 | 406.9m | 1004.1m | No |
-| GREEDY | 1200 | 869.0m | 1000.4m | No |
-
-None arrived. All three walkers ended ~1000m from the goal after 1200 steps (started at ~990m). FLY statistically resembles COIN — the connectome-driven walker did not beat the random baseline. GREEDY walked more distance but still didn't arrive, suggesting the corridor's spatial graph doesn't have a connected path that reduces crow-flies distance to the goal.
-
-Timing: 76 brain consults, avg 4,542ms per consult, p95 5,934ms, total brain time 362.7s (~6 minutes). The walk itself took ~8 hours wall time (including preemption recovery from spot VM).
-
-## Results (run v2)
-
-Goal meter input channel, 125m Santa Justa corridor, MAX_STEPS=400.
+125 m Santa Justa corridor, MAX_STEPS=400.
 
 | Walker | Steps | Distance walked | Final distance to goal | Arrived? |
 |--------|-------|-----------------|------------------------|----------|
@@ -52,11 +36,11 @@ Goal meter input channel, 125m Santa Justa corridor, MAX_STEPS=400.
 | COIN | 400 | 776.7m | 117.7m | No |
 | GREEDY | 23 | 151.3m | 15.9m | Yes |
 
-GREEDY navigated the corridor cleanly and reached the nata. Neither FLY nor COIN did: the corridor's start pocket hands the fly a tight knot of near-equidistant captures, and both walkers burned their 400 ticks doing 690-780m of lateral walking inside it (FLY net −19.4m, COIN net −8.9m). FLY ended 11.6m closer than COIN and was closer on net distance, but only on 117/400 ticks (29%) — a direction-consistent but statistically weak edge, inseparable from random variation at tick resolution. The goal meter itself was probed inert against the live brain before the run (per-junction corr −0.07, n=32 junctions). The honest v2 read: a real connectome making real decisions on goal-tinted frames still cannot turn visual salience into navigation, even on a corridor where GREEDY walks the answer in 23 steps.
+GREEDY navigated the corridor cleanly and reached the nata. Neither FLY nor COIN did: the corridor's start pocket hands the fly a tight knot of near-equidistant captures, and both walkers burned their 400 ticks doing 690-780m of lateral walking inside it (FLY net −19.4m, COIN net −8.9m). FLY ended 11.6m closer than COIN and was closer on net distance, but only on 117/400 ticks (29%) — a direction-consistent but statistically weak edge, inseparable from random variation at tick resolution. The goal meter itself was probed inert against the live brain before the run (per-junction corr −0.07, n=32 junctions). The honest read: a real connectome making real decisions on goal-tinted frames still cannot turn visual salience into navigation, even on a corridor where GREEDY walks the answer in 23 steps.
 
 Timing: 64 trackable consults in the tail window, avg 4,640ms per consult, p95 6,075ms, avg tick 23.3s. The full 400-tick run took ~2.6h wall time.
 
-Runs/artifacts: `local-runs/runs/nata2/` (route.json, walk.jsonl, summary.json, 400 flycam frames, thumbs). Replay: `local-runs/runs/nata2/replay/index.html`.
+Run artifacts: `local-runs/runs/<run_id>/` (route.json, walk.jsonl, summary.json, flycam frames, thumbs), with the rendered replay in `local-runs/runs/<run_id>/replay/index.html`. The committed clone-ready copy is in `sample/`.
 
 ## Layout
 
@@ -65,7 +49,7 @@ infra/       Terraform: on-demand e2-highmem-4 (16GB), no inbound ports
 oracle/      FastAPI sidecar wrapping Stonkfly's neural package
 walker/      Mapillary corridor builder, walker loop, replay renderer
 tools/       artifact helpers (sample packaging)
-sample/      committed sample run for clone-and-watch
+sample/      committed run replay for clone-and-watch
 compose.yml  prepare (dataset) -> oracle -> walker, shared /data volume
 ```
 
@@ -128,10 +112,10 @@ sudo docker compose -f /opt/flywalker/compose.yml ps
 sudo docker compose -f /opt/flywalker/compose.yml logs -f walker
 
 # Check walk progress via JSONL (works even when stdout is buffered)
-sudo docker compose -f /opt/flywalker/compose.yml exec walker sh -c 'wc -l /data/runs/nata/walk.jsonl && tail -1 /data/runs/nata/walk.jsonl'
+sudo docker compose -f /opt/flywalker/compose.yml exec walker sh -c 'wc -l /data/runs/<run_id>/walk.jsonl && tail -1 /data/runs/<run_id>/walk.jsonl'
 
 # Check consult latency
-sudo docker compose -f /opt/flywalker/compose.yml exec walker sh -c 'tail -1 /data/runs/nata/walk.jsonl' | python3 -m json.tool | grep consult_ms
+sudo docker compose -f /opt/flywalker/compose.yml exec walker sh -c 'tail -1 /data/runs/<run_id>/walk.jsonl' | python3 -m json.tool | grep consult_ms
 ```
 
 ### Timing
@@ -141,7 +125,7 @@ The walker prints timing lines every 10 ticks:
 tick 40/1200 | consult avg=5601ms p95=13508ms | tick=28.4s | 3 walkers active | ETA 548min
 ```
 
-Real MaleCNS consult latency: ~5-9 seconds per consult (~40-50 seconds per tick with 5-8 candidates). v2 caps the run at MAX_STEPS=400 (the COIN baseline never arrives and would otherwise extend the walk to the step cap) — a full v2 run takes ~2.5-4 hours; v1's 1200-step run took ~8-10 hours.
+Real MaleCNS consult latency: ~5-9 seconds per consult (~40-50 seconds per tick with 5-8 candidates). The run caps at MAX_STEPS=400 (the COIN baseline never arrives and would otherwise extend the walk to the step cap) — a full run takes ~2.5-4 hours.
 
 ### Pull artifacts
 
@@ -149,23 +133,23 @@ Data lives on a Docker named volume, not directly on the VM filesystem.
 
 ```bash
 # Create a tarball on the VM
-gcloud compute ssh flywalker --zone=europe-west4-a --command="sudo tar czf /tmp/nata.tar.gz -C /var/lib/docker/volumes/flywalker_data/_data/runs nata"
+gcloud compute ssh flywalker --zone=europe-west4-a --command="sudo tar czf /tmp/<run_id>.tar.gz -C /var/lib/docker/volumes/flywalker_data/_data/runs <run_id>"
 
 # Download
 mkdir -p local-runs
-gcloud compute scp flywalker:/tmp/nata.tar.gz ./local-runs/nata.tar.gz --zone=europe-west4-a
+gcloud compute scp flywalker:/tmp/<run_id>.tar.gz ./local-runs/<run_id>.tar.gz --zone=europe-west4-a
 
 # Extract
-cd local-runs && tar xzf nata.tar.gz
+cd local-runs && tar xzf <run_id>.tar.gz
 ```
 
 ### Render and view replay
 
 ```bash
-python walker/replay.py --run-id nata --data-dir local-runs
+python walker/replay.py --run-id <run_id> --data-dir local-runs
 
 # Serve locally (OSM tiles block file:// requests)
-cd local-runs/runs/nata/replay && python3 -m http.server 8080
+cd local-runs/runs/<run_id>/replay && python3 -m http.server 8080
 # Open http://localhost:8080
 ```
 
@@ -187,22 +171,22 @@ Spot VMs are ~2-3x cheaper but get preempted frequently (~every 30-60 minutes). 
 
 **Viewing the replay:** OSM tiles block `file://` requests. Serve the replay directory locally:
 ```bash
-cd local-runs/runs/nata/replay && python3 -m http.server 8080
+cd local-runs/runs/<run_id>/replay && python3 -m http.server 8080
 # Open http://localhost:8080
 ```
 
-### Watch a real run without running anything
+### Watch the run without running anything
 
-The repo ships a real run in `sample/nata2/` (the v2 corridor, Santa Justa → Carmo, 400 ticks, GREEDY arrived in 23 steps) so a fresh clone can watch it without the oracle, the MaleCNS dataset, or a Mapillary token:
+The repo ships the run in `sample/run/` so a fresh clone can watch it without the oracle, the MaleCNS dataset, or a Mapillary token:
 
 ```bash
-cd sample/nata2/replay && python3 -m http.server 8080
+cd sample/run/replay && python3 -m http.server 8080
 # Open http://localhost:8080
 ```
 
-The flycam frames are re-encoded to WebP q80 (~4 MB instead of ~34 MB); the replay page prefers `.webp` and falls back to `.png`, and every score, chart and statistic is computed from the exact run logs. `route.json` and `summary.json` are byte-exact. Rebuild or extend the sample with `python tools/ship_sample.py`. The v1 run (`nata`) is not shipped: its 1,200 PNG frames weigh ~100 MB.
+The flycam frames are re-encoded to WebP q80 (~4 MB instead of ~34 MB); the replay page prefers `.webp` and falls back to `.png`, and every score, chart and statistic is computed from the exact run logs. `route.json` and `summary.json` are byte-exact. Rebuild or extend the sample with `python tools/ship_sample.py`.
 
-`export_video` is a stub that awaits an ffmpeg compositing step; the replay page is the v1 artifact.
+`export_video` is a stub that awaits an ffmpeg compositing step; the replay page is the artifact.
 
 ## Credits
 

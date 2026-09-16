@@ -1,6 +1,6 @@
 """Offline replay renderer: turn a completed run into a shareable cinematic page.
 
-    python replay.py --run-id nata2 --data-dir local-runs
+    python replay.py --run-id <run_id> --data-dir local-runs
 
 Reads runs/<run_id>/{route.json,walk.jsonl,summary.json,frames} and writes
 runs/<run_id>/replay/ containing a self-contained index.html (only external
@@ -43,8 +43,8 @@ import shutil
 COLORS = {"fly": "#e8710a", "coin": "#9aa0a6", "greedy": "#1a73e8"}
 
 RUN_LABELS = {
-    "nata": ("Rossio", "Manteigaria", "run v1"),
-    "nata2": ("Santa Justa", "Carmo", "run v2"),
+    "nata": ("Rossio", "Manteigaria"),
+    "nata2": ("Santa Justa", "Carmo"),
 }
 
 THEATER_RADIUS_M = 120.0
@@ -222,7 +222,7 @@ def closeness_stats(series):
     }
 
 
-def honesty_html(summary, close, arrivals, run_id):
+def honesty_html(summary, close, arrivals):
     w = summary["walkers"]
     if arrivals:
         arrived = ("; ".join("%s arrived at tick %d (%.1f m from the goal)"
@@ -321,7 +321,7 @@ def honesty_html(summary, close, arrivals, run_id):
     return lead, "".join(row_html), arrived
 
 
-def prov_html(route, summary, run_id, crow_m, label, wall_est, theater):
+def prov_html(route, summary, crow_m, label, wall_est, theater):
     w = summary["walkers"]
     walker_rows = []
     for name in ["fly", "coin", "greedy"]:
@@ -339,9 +339,9 @@ def prov_html(route, summary, run_id, crow_m, label, wall_est, theater):
             fetched, datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     return "\n".join(
         [
-            "<table><tr><td class='k'>run</td><td>%s (%s) \u00b7 %d ticks \u00b7 "
+            "<table><tr><td class='k'>run</td><td>%s \u00b7 %d ticks \u00b7 "
             "approx wall time %s \u00b7 recorded %s</td></tr>" % (
-                run_id, label, summary["ticks"], wall_est, _fmt_ts(summary)),
+                label, summary["ticks"], wall_est, _fmt_ts(summary)),
             "<tr><td class='k'>route</td><td>%s \u00b7 crow-flies %.0f m \u00b7 "
             "graph %d nodes / %d links \u00b7 %d Mapillary frames \u00b7 "
             "fetched %s \u00b7 bbox %s</td></tr>" % (
@@ -869,10 +869,9 @@ const COLORS = { fly:"#e8710a", coin:"#9aa0a6", greedy:"#1a73e8" };
 const maxTick = P.max_tick;
 
 /* ---------- header / run card ---------- */
-document.getElementById("b-run").textContent = P.run.id + " · " + P.run.label;
+document.getElementById("b-run").textContent = P.run.label;
 const card = document.getElementById("run-card");
 [
-  ["route", P.run.label],
   ["route graph", P.theater.node_count + " nodes · " + P.theater.edge_count + " links"],
   ["imagery", P.run.image_count + " frames · " + P.run.source],
   ["crow-flies", P.run.crow_m.toFixed(0) + " m"],
@@ -1370,9 +1369,9 @@ def render(run_dir):
     close = closeness_stats(series)
     run_id = summary["run_id"]
 
-    label = RUN_LABELS.get(run_id, (route["start"]["lat"], route["goal"]["lat"], "run"))
+    label = RUN_LABELS.get(run_id, (route["start"]["lat"], route["goal"]["lat"]))
     if isinstance(label[0], float):
-        label = ("start", "goal", "run")
+        label = ("start", "goal")
     crow_m = haversine_m(route["start"]["lat"], route["start"]["lng"],
                          route["goal"]["lat"], route["goal"]["lng"])
 
@@ -1405,8 +1404,7 @@ def render(run_dir):
 
     payload = {
         "run": {
-            "id": run_id,
-            "label": "%s \u2192 %s (%s)" % (label[0], label[1], label[2]),
+            "label": "%s \u2192 %s" % (label[0], label[1]),
             "ticks": summary["ticks"],
             "image_count": route.get("image_count"),
             "source": route.get("source"),
@@ -1441,13 +1439,13 @@ def render(run_dir):
         if os.path.isdir(frames_src) else 0,
     }
 
-    lead, rows_html, _ = honesty_html(summary, close, arrivals, run_id)
+    lead, rows_html, _ = honesty_html(summary, close, arrivals)
     route_payload = dict(route)
     del route_payload["nodes"]
     del route_payload["edges"]
     route_payload["node_count"] = len(route["nodes"])
     route_payload["edge_count"] = sum(len(v) for v in route["edges"].values())
-    prov = prov_html(route_payload, summary, run_id, crow_m, "%s \u2192 %s" % (label[0], label[1]), _wall_est(summary), theater)
+    prov = prov_html(route_payload, summary, crow_m, "%s \u2192 %s" % (label[0], label[1]), _wall_est(summary), theater)
 
     html = (PAGE_TEMPLATE
             .replace("__PAYLOAD__", json.dumps(payload, separators=(",", ":")))
