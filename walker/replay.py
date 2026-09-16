@@ -4,7 +4,7 @@
 
 Reads runs/<run_id>/{route.json,walk.jsonl,summary.json,frames} and writes
 runs/<run_id>/replay/ containing a self-contained index.html (only external
-dependency: Leaflet 1.9.4 + CARTO Voyager tiles):
+dependency: Leaflet 1.9.4 + OpenStreetMap tiles):
 
 - dark cinematic theme, run card with MaleCNS badges and consult stats
 - junction theater map: subgraph buffered around the walker trails, GREEDY
@@ -710,7 +710,7 @@ svg.chart { width:100%; height:auto; display:block; }
         Brain: MaleCNS v1.0 (<a href="https://male-cns.janelia.org/">Google Research + HHMI Janelia</a>) ·
         neural kernel &amp; decoder: <a href="https://github.com/nftechie/stonkfly">Stonkfly</a> (MIT) ·
         imagery: <a href="https://www.mapillary.com/">Mapillary</a> ·
-        map: <a href="https://leafletjs.com/">Leaflet</a> + CARTO Voyager tiles ·
+        map: <a href="https://leafletjs.com/">Leaflet</a> + OpenStreetMap tiles ·
         repo: <a href="https://github.com/franBec/flywalker">github.com/franBec/flywalker</a>
       </div>
     </div>
@@ -760,9 +760,9 @@ legend.appendChild(ls);
 /* ---------- theater map ---------- */
 const map = L.map("map", { zoomControl: true });
 map.attributionControl.setPrefix('<a href="https://leafletjs.com">Leaflet</a>');
-L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a> · imagery © Mapillary',
-  maxZoom: 20, subdomains: "abcd"
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors · imagery © Mapillary',
+  maxZoom: 19
 }).addTo(map);
 
 const T = P.theater;
