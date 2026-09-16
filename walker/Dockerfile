@@ -7,6 +7,7 @@ WORKDIR /srv
 COPY requirements.txt /srv/requirements.txt
 RUN pip install --no-cache-dir -r /srv/requirements.txt
 
-COPY corridor.py frames.py mockcorridor.py policies.py walk.py replay.py /srv/
+COPY corridor.py frames.py mockcorridor.py policies.py walk.py replay.py replay_template.html /srv/
+COPY vendor/ /srv/vendor/
 
 CMD ["python", "walk.py"]

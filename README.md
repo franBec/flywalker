@@ -48,8 +48,9 @@ Run artifacts: `local-runs/runs/<run_id>/` (route.json, walk.jsonl, summary.json
 infra/       Terraform: on-demand e2-highmem-4 (16GB), no inbound ports
 oracle/      FastAPI sidecar wrapping Stonkfly's neural package
 walker/      Mapillary corridor builder, walker loop, replay renderer
+             (vendored Leaflet + three.js under walker/vendor/)
 tools/       artifact helpers (sample packaging)
-sample/      committed run replay for clone-and-watch
+sample/      committed standalone run replay for clone-and-watch
 compose.yml  prepare (dataset) -> oracle -> walker, shared /data volume
 ```
 
@@ -148,7 +149,10 @@ cd local-runs && tar xzf <run_id>.tar.gz
 ```bash
 python walker/replay.py --run-id <run_id> --data-dir local-runs
 
-# Serve locally (OSM tiles block file:// requests)
+# --standalone embeds the flycam frames so the page plays from file://
+python walker/replay.py --run-id <run_id> --data-dir local-runs --standalone
+
+# Serve locally (OSM tiles block file:// requests on the default build)
 cd local-runs/runs/<run_id>/replay && python3 -m http.server 8080
 # Open http://localhost:8080
 ```
@@ -167,24 +171,36 @@ Spot VMs are ~2-3x cheaper but get preempted frequently (~every 30-60 minutes). 
 
 ## Artifacts
 
-`replay.py` renders `replay/index.html`, a self-contained, dark-cinematic replay page (only external dependency: Leaflet 1.9.4 + OpenStreetMap tiles) — the header carries an animated fly mark and on the map the FLY walker itself is a fly that turns to its heading. A brief "what you're looking at" explainer covers the cast (FLY/COIN/GREEDY), the map keys, and the cockpit units. It embeds a junction-theater subgraph around the walker trails — with the GREEDY ghost path, per-walker GPS-density halos, and a pulsing goal marker — a what-the-fly-saw cockpit (flycam frame, candidate score bars A–E, DNp20 left/right differential meter, DNpe017 gate, consult latency, reinforcement badge, signed delta pill), a timeline player with key-moment markers (arrivals, closest approaches, dopamine pulses), synced distance-to-goal and cumulative-walked charts, a reinforcement ledger, data-derived honesty chips (e.g. "FLY closer than COIN on 117/400 ticks (29%)"), the two-column what-is-real/what-is-engineered honesty table, and a provenance footer. The page embeds the walk logs and the theater subgraph only; the heavy `route.json` stays alongside for provenance.
+`replay.py` renders `replay/index.html`, a self-contained, dark-cinematic replay page: Leaflet 1.9.4 and three.js are vendored in `walker/vendor/` and inlined, so the only external dependency is the OpenStreetMap tiles. The cockpit layout puts a three.js 3D stage in the middle — a low-poly fly stands on the capture point it actually walked out of, turns to its heading, and the walker trails, capture lattice and the nata's gold beam render around it (the header carries the animated fly mark). The left rail holds the Leaflet junction theater (with the GREEDY ghost path, per-walker GPS-density halos and a pulsing goal marker) plus live standings, the decoded approach bars A–E, the DNp20 left/right differential meter, DNpe017 gate and consult latency. Below: a timeline player with key-moment markers (arrivals, closest approaches, dopamine pulses), synced distance-to-goal and cumulative-walked charts, a reinforcement ledger, data-derived honesty chips (e.g. "FLY closer than COIN on 117/400 ticks (29%)"), the two-column what-is-real/what-is-engineered honesty table, and a provenance footer. The page embeds the walk logs and the theater subgraph only; the heavy `route.json` stays alongside for provenance.
+
+```bash
+# default build: frames stay as files next to the page
+python walker/replay.py --run-id <run_id> --data-dir local-runs
+
+# standalone build: every flycam frame is base64-embedded into index.html,
+# so a double-click plays it with no sibling files at all
+python walker/replay.py --run-id <run_id> --data-dir local-runs --standalone
+```
 
 **Viewing the replay:** OSM tiles block `file://` requests. Serve the replay directory locally:
 ```bash
 cd local-runs/runs/<run_id>/replay && python3 -m http.server 8080
 # Open http://localhost:8080
 ```
+The `--standalone` page opens straight from `file://` — only its map tiles need a connection.
 
 ### Watch the run without running anything
 
 The repo ships the run in `sample/run/` so a fresh clone can watch it without the oracle, the MaleCNS dataset, or a Mapillary token:
 
 ```bash
+# sample is a standalone build: double-click sample/run/replay/index.html
+# (or serve the replay directory and open localhost:8080)
 cd sample/run/replay && python3 -m http.server 8080
 # Open http://localhost:8080
 ```
 
-The flycam frames are re-encoded to WebP q80 (~4 MB instead of ~34 MB); the replay page prefers `.webp` and falls back to `.png`, and every score, chart and statistic is computed from the exact run logs. `route.json` and `summary.json` are byte-exact. Rebuild or extend the sample with `python tools/ship_sample.py`.
+The flycam frames are WebP-embedded in the page itself (the sample replay is ~7 MB single-file), and every score, chart and statistic is computed from the exact run logs. `route.json` and `summary.json` are byte-exact. Rebuild or extend the sample with `python tools/ship_sample.py`.
 
 `export_video` is a stub that awaits an ffmpeg compositing step; the replay page is the artifact.
 

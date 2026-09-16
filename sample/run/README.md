@@ -2,13 +2,11 @@
 
 This is the real MaleCNS walk, packaged so a fresh clone shows the replay without running the simulation pipeline.
 
-- `replay/index.html` — the full replay page: walk logs, decoded approach scores, charts, reinforcement ledger and the honesty section are embedded. Serve it as-is.
-- `replay/frames/*.webp` — the 400 flycam frames, re-encoded from the original PNGs to WebP q80 (roughly 8x smaller). The page prefers `.webp` and falls back to `.png`, so a full-fidelity build also works. Every score and statistic is computed from the exact run logs.
+- `replay/index.html` — the full replay page: walk logs, decoded approach scores, charts, reinforcement ledger and the honesty section are embedded. Leaflet 1.9.4 and three.js are inlined; the 400 flycam frames are embedded in the page — open index.html directly, no server needed
 - `route.json`, `summary.json` — byte-exact provenance copies.
 
 Watch it:
 
-    cd sample/run/replay && python3 -m http.server 8080
-    # open http://localhost:8080
+        # double-click sample/run/replay/index.html (the OpenStreetMap tiles still need a connection)
 
 Rebuild this sample with:  python tools/ship_sample.py
