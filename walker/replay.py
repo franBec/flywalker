@@ -7,6 +7,8 @@ runs/<run_id>/replay/ containing a self-contained index.html (only external
 dependency: Leaflet 1.9.4 + OpenStreetMap tiles):
 
 - dark cinematic theme, run card with MaleCNS badges and consult stats
+- "what you're looking at" explainer: the cast, the map keys, and why
+  the cockpit measures decoded approach in Hz
 - junction theater map: subgraph buffered around the walker trails, GREEDY
   ghost path, per-walker GPS-density halos, pulsing nata marker
 - what-the-fly-saw cockpit: flycam frame, candidate score bars (A-E),
@@ -393,6 +395,7 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
   --bg:#0b0e12; --panel:#12161c; --panel2:#161b23; --line:#232a33;
   --text:#d7dbe1; --muted:#8b94a0; --dim:#5b6470;
   --fly:#e8710a; --coin:#9aa0a6; --greedy:#1a73e8;
+  --nata:#f5c65d;
   --ok:#2ecc71; --bad:#e74c3c; --accent:#e8710a;
 }
 * { box-sizing:border-box; }
@@ -404,8 +407,19 @@ a:hover { text-decoration:underline; }
 .wrap { max-width:1180px; margin:0 auto; padding:0 18px 40px; }
 h1 { font-size:22px; margin:0 0 4px; letter-spacing:.2px; }
 .sub { font-size:13px; color:var(--muted); }
-h2 { font-size:13px; text-transform:uppercase; letter-spacing:1.6px;
-  color:var(--muted); margin:0 0 12px; font-weight:600; }
+h2 { font-size:14px; font-weight:700; color:var(--text);
+  letter-spacing:.1px; margin:0 0 12px;
+  border-left:3px solid var(--fly); padding-left:9px; }
+button:focus-visible, input[type=range]:focus-visible, a:focus-visible {
+  outline:2px solid #7ab3f5; outline-offset:2px; }
+@media (prefers-reduced-motion: reduce) {
+  .nata-icon .ring { animation:none; opacity:.5; }
+  .diff .l, .diff .r, .diff .n { transition:none; }
+}
+@media (max-width:600px) {
+  input[type=range]::-webkit-slider-thumb { width:22px; height:22px; margin-top:-9px; }
+  input[type=range]::-moz-range-thumb { width:18px; height:18px; }
+}
 .panel { background:linear-gradient(180deg,var(--panel),#0f1318);
   border:1px solid var(--line); border-radius:12px; padding:16px 18px;
   margin:14px 0; }
@@ -422,6 +436,21 @@ h2 { font-size:13px; text-transform:uppercase; letter-spacing:1.6px;
   color:var(--muted); align-items:center; }
 .legend .sw { display:inline-block; width:10px; height:10px; border-radius:3px;
   margin-right:6px; vertical-align:-1px; }
+.cast { display:grid; grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px; }
+@media (max-width:700px) { .cast { grid-template-columns:1fr; } }
+.cast-card { background:#0d1117; border:1px solid #1a2029;
+  border-top:3px solid var(--fly); border-radius:8px; padding:10px 12px;
+  font-size:12.5px; color:var(--muted); line-height:1.55; }
+.cast-card b { color:var(--text); font-size:13px; display:block;
+  margin-bottom:2px; }
+.glossary { display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:2px 24px; font-size:12.5px; color:var(--muted); }
+@media (max-width:700px) { .glossary { grid-template-columns:1fr; } }
+.glossary dt { color:var(--text); font-weight:600; font-size:12px;
+  margin-top:8px; }
+.glossary dd { margin:0 0 4px; }
+.cast-cap { margin-bottom:8px; }
 .legend-panel { display:flex; justify-content:space-between; flex-wrap:wrap;
   gap:8px; }
 #map { height:520px; border-radius:10px; border:1px solid var(--line);
@@ -559,10 +588,10 @@ svg.chart { width:100%; height:auto; display:block; }
 .prov .credit { margin-top:10px; color:var(--muted); font-size:12px; }
 .nata-icon { position:relative; }
 .nata-icon .dot { position:absolute; left:50%; top:50%; width:14px; height:14px;
-  margin:-7px 0 0 -7px; border-radius:50%; background:var(--accent);
-  box-shadow:0 0 10px rgba(232,113,10,.9); border:2px solid #ffffff55; }
+  margin:-7px 0 0 -7px; border-radius:50%; background:var(--nata);
+  box-shadow:0 0 10px rgba(245,198,93,.9); border:2px solid #ffffff55; }
 .nata-icon .ring { position:absolute; left:50%; top:50%; width:14px; height:14px;
-  margin:-7px 0 0 -7px; border-radius:50%; border:2px solid var(--accent);
+  margin:-7px 0 0 -7px; border-radius:50%; border:2px solid var(--nata);
   animation:pulse 2s ease-out infinite; }
 @keyframes pulse { 0% { transform:scale(1); opacity:.9; }
   100% { transform:scale(4.2); opacity:0; } }
@@ -591,6 +620,42 @@ svg.chart { width:100%; height:auto; display:block; }
 
   <section class="panel" style="padding:0;overflow:hidden">
     <div id="map"></div>
+  </section>
+
+  <section class="panel">
+    <h2>What you're looking at</h2>
+    <div class="cast-cap sub">the cast</div>
+    <div class="cast">
+      <div class="cast-card" style="border-top-color:var(--fly)"><b>FLY — the real brain</b>
+        MaleCNS v1.0, the adult male fruit-fly connectome: 166,700 neurons, 25.6M connections.
+        At every junction it views each exit's street photo through a simulated retina and turns the
+        connectome's spike traffic into a direction score. This is the experiment: does the connectome walk?</div>
+      <div class="cast-card" style="border-top-color:var(--coin)"><b>COIN — no brain</b>
+        Picks a uniformly random exit at every step. The noise floor: a walker that does not beat COIN
+        is not navigating.</div>
+      <div class="cast-card" style="border-top-color:var(--greedy)"><b>GREEDY — no brain</b>
+        Always steps toward the exit that most reduces the straight-line distance to the goal.
+        The sense-of-direction ceiling: how far FLY is from intent.</div>
+    </div>
+    <div class="cast-cap sub" style="margin-top:16px">the legend, decoded</div>
+    <dl class="glossary">
+      <dt>junction theater</dt><dd>only the street graph near where the walkers actually went. Dots are
+        street-photo capture points; thin lines link neighbouring captures.</dd>
+      <dt>GPS-density halos</dt><dd>where each walker lingered; stronger colour means more revisits.</dd>
+      <dt>GREEDY ghost path</dt><dd>the dashed blue line: shortest graph route from GREEDY's last
+        position to the goal.</dd>
+      <dt>pulsing gold dot</dt><dd>the goal: a pastel de nata.</dd>
+      <dt>approach scores A–E, in Hz</dt><dd>the five exits from the current junction. Bar height is the
+        connectome's score for that exit's photo, in Hz = spikes per second in the descending neurons the
+        decoder listens to. Higher bar, stronger approach vote; ▼ marks the exit FLY actually took.</dd>
+      <dt>BUY / SELL / HOLD</dt><dd>the DNp20 decoder's verdict: right-selective neurons firing harder (BUY —
+        move right-leaning), left harder (SELL — left-leaning), neither (HOLD).</dd>
+      <dt>Σ spikes · gate · latency</dt><dd>total connectome spikes across the five consults, DNpe017 gate
+        spike count, and how long the brain simulation took for that candidate.</dd>
+      <dt>delta pill &amp; reinforcement</dt><dd>±m closer / away: this step's change in straight-line
+        distance to the nata. The dopamine badge means progress queued a reward pulse for the next
+        consult; aversive means regression.</dd>
+    </dl>
   </section>
 
   <section class="panel">
@@ -667,11 +732,11 @@ svg.chart { width:100%; height:auto; display:block; }
     <div class="chips" id="verdict-chips" style="margin-bottom:12px"></div>
     <div class="charts">
       <div>
-        <h2>Distance to goal (m) &nbsp;·&nbsp; ★ arrival</h2>
+        <h2>Distance to goal (m)</h2>
         <div class="chart-wrap"><svg class="chart" id="chart-dist" viewBox="0 0 900 240"></svg></div>
       </div>
       <div>
-        <h2>Distance walked (m) · cumulative</h2>
+        <h2>Distance walked (m)</h2>
         <div class="chart-wrap"><svg class="chart" id="chart-walked" viewBox="0 0 900 240"></svg></div>
       </div>
     </div>
@@ -691,7 +756,7 @@ svg.chart { width:100%; height:auto; display:block; }
   </section>
 
   <section class="panel">
-    <h2>Honesty — what is real, what is engineered</h2>
+    <h2>Honesty: what is real, what is engineered</h2>
     <p class="lead">__HONESTY_LEAD__</p>
     <div class="honest-grid">
       <div class="headers">
@@ -754,7 +819,7 @@ const legend = document.getElementById("legend");
 const ls = document.createElement("span");
 ls.innerHTML = '<span class="sw" style="background:#2a3340;border-radius:50%"></span>junction theater · '
   + '<span class="sw" style="background:none;border:1px dashed #1a73e8;border-radius:0"></span>GREEDY ghost path · '
-  + '<span class="sw" style="background:#e8710a;border-radius:50%"></span>pastel de nata';
+  + '<span class="sw" style="background:#f5c65d;border-radius:50%"></span>pastel de nata';
 legend.appendChild(ls);
 
 /* ---------- theater map ---------- */
@@ -806,7 +871,8 @@ function WALKER_LABEL(name) {
   const w = P.walkers[name];
   return name.toUpperCase() + (w.arrived ? " — arrived" : "") + " · " + w.steps + " steps · " + w.distance_m.toFixed(0) + " m";
 }
-L.marker(P.goal, { icon:L.divIcon({ className:"nata-icon", html:'<div class="ring"></div><div class="dot"></div>', iconSize:[20,20], iconAnchor:[10,10] }), interactive:false }).addTo(map);
+L.marker(P.goal, { icon:L.divIcon({ className:"nata-icon", html:'<div class="ring"></div><div class="dot"></div>', iconSize:[20,20], iconAnchor:[10,10] }), interactive:true }).addTo(map)
+  .bindTooltip("pastel de nata");
 L.marker(P.start, { icon:L.divIcon({ className:"start-icon", html:'<div class="dot"></div>', iconSize:[18,18], iconAnchor:[9,9] }), interactive:false }).addTo(map)
   .bindTooltip("start");
 
@@ -1053,6 +1119,8 @@ function renderCockpit(tick) {
     const c = cands[i];
     const row = document.createElement("div");
     row.className = "bar-row";
+    row.title = "candidate " + c[0] + ": approach " + c[2].toFixed(0) +
+      " Hz \u2014 spikes per second in the decoder's descending neurons while viewing this candidate";
     const arr = document.createElement("span");
     arr.className = "bar-arr";
     arr.textContent = i === chosen ? "\u25bc" : "";
